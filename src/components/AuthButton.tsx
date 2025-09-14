@@ -26,7 +26,7 @@ export function AuthButton() {
 
   if (!session) {
     return (
-      <Button onClick={() => signIn('google')} variant="default">
+      <Button onClick={() => signIn('google', { callbackUrl: '/dashboard' })} variant="default">
         Sign In
       </Button>
     )

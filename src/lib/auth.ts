@@ -93,10 +93,6 @@ export const authOptions: AuthOptions = {
       return session;
     },
     redirect: async ({ url, baseUrl }) => {
-      // If user signs in successfully, redirect to dashboard
-      if (url === baseUrl) {
-        return `${baseUrl}/dashboard`;
-      }
       // Allow relative callback URLs
       if (url.startsWith("/")) {
         return `${baseUrl}${url}`;
@@ -105,7 +101,8 @@ export const authOptions: AuthOptions = {
       if (new URL(url).origin === baseUrl) {
         return url;
       }
-      return baseUrl;
+      // Default fallback to dashboard
+      return `${baseUrl}/dashboard`;
     },
   },
   pages: {

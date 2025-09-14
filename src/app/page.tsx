@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { authOptions } from '@/lib/auth'
-import { Button } from '@/components/ui/button'
+import GetStartedButton from '@/components/GetStartedButton'
 
 export default async function Home() {
   const session = await getServerSession(authOptions)
@@ -20,9 +20,7 @@ export default async function Home() {
         <p className="text-xl text-muted-foreground mb-8">
           The simple, beautiful home for your private journals and collaborative notes.
         </p>
-        <Button size="lg" className="text-lg px-8 py-6">
-          Get Started for Free
-        </Button>
+        <GetStartedButton />
       </div>
     </main>
   )

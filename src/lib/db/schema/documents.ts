@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, jsonb, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, integer, jsonb, pgEnum, boolean } from 'drizzle-orm/pg-core';
 import { users } from './users';
 import { workspaces } from './workspaces';
 
@@ -14,6 +14,9 @@ export const documents = pgTable('documents', {
   updated_at: timestamp('updated_at').defaultNow().notNull(),
   author_id: text('author_id').notNull().references(() => users.id),
   workspace_id: text('workspace_id').notNull().references(() => workspaces.id),
+  color: text('color'),
+  is_pinned: boolean('is_pinned').default(false),
+  is_archived: boolean('is_archived').default(false),
 });
 
 export type Document = typeof documents.$inferSelect;

@@ -66,6 +66,7 @@ export default function RegisterForm() {
         form.reset()
       }
     } catch (error) {
+      console.error('Registration error:', error)
       toast({
         variant: "destructive",
         title: "Error",

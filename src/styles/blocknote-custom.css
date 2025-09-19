@@ -1,0 +1,74 @@
+/* Custom BlockNote styling for CreateNoteForm */
+.create-note-editor .bn-editor {
+  background: transparent !important;
+}
+
+.create-note-editor .ProseMirror {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  padding: 8px 0 !important;
+}
+
+.create-note-editor .bn-block-outer {
+  background: transparent !important;
+}
+
+.create-note-editor .bn-block-content {
+  background: transparent !important;
+}
+
+.create-note-editor .bn-inline-content {
+  background: transparent !important;
+}
+
+.create-note-editor .bn-block-group {
+  background: transparent !important;
+}
+
+/* Hide any input elements that might be causing the white line */
+.create-note-editor input[type="text"] {
+  display: none !important;
+}
+
+.create-note-editor .bn-slash-menu-container {
+  display: none !important;
+}
+
+/* Target the specific white input field */
+.create-note-editor .bn-editor input {
+  display: none !important;
+}
+
+/* Hide the placeholder that shows "Enter text or type '/' for commands" */
+.create-note-editor .ProseMirror p.is-empty::before {
+  content: "Take a note..." !important;
+  color: #6b7280 !important;
+  pointer-events: none !important;
+  font-style: normal !important;
+}
+
+/* Remove any white backgrounds from nested elements */
+.create-note-editor * {
+  background-color: transparent !important;
+}
+
+/* Ensure the editor blends with the card background */
+.create-note-editor {
+  background: inherit !important;
+}
+
+/* Hide any toolbar or menu items that might be causing issues */
+.create-note-editor .bn-toolbar {
+  display: none !important;
+}
+
+.create-note-editor .bn-formatting-toolbar {
+  display: none !important;
+}
+
+/* Make the editor content area seamless */
+.create-note-editor .bn-editor > * {
+  background: transparent !important;
+  border: none !important;
+}

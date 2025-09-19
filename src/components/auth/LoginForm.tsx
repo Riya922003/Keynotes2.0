@@ -34,8 +34,8 @@ interface LoginFormProps {
 }
 
 export default function LoginForm({ onSuccess }: LoginFormProps) {
-  const router = useRouter()
   const { toast } = useToast()
+  const router = useRouter()
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -50,10 +50,8 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       const result = await signIn('credentials', {
         email: values.email,
         password: values.password,
-        redirect: false,
+        redirect: false, // Handle redirect manually for better UX
       })
-
-      console.log('Login result:', result)
 
       if (result?.error) {
         toast({
@@ -62,14 +60,15 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
           description: "Invalid email or password",
         })
       } else if (result?.ok) {
-        console.log('Login successful, closing dialog and navigating to dashboard...')
         // Success - close dialog first
         onSuccess?.()
         
-        // Force a page reload to ensure fresh session
-        window.location.href = '/dashboard'
+        // Use Next.js router for proper client-side navigation
+        router.push('/dashboard')
+        router.refresh() // Ensure fresh session data
       }
     } catch (error) {
+      console.error('Login error:', error)
       toast({
         variant: "destructive",
         title: "Error",

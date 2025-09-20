@@ -72,3 +72,20 @@
   background: transparent !important;
   border: none !important;
 }
+
+/* Fix color palette positioning within note cards */
+.note-card-container .color-palette-dropdown {
+  position: absolute !important;
+  bottom: 100% !important;
+  left: 0 !important;
+  margin-bottom: 8px !important;
+  z-index: 60 !important;
+  min-width: 280px !important;
+  max-width: 320px !important;
+}
+
+/* Ensure note cards maintain proper stacking context */
+.note-card-container {
+  position: relative !important;
+  overflow: visible !important;
+}

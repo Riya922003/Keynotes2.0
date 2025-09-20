@@ -8,6 +8,20 @@
       "when": 1758307896644,
       "tag": "0000_mushy_butterfly",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1758395894532,
+      "tag": "0001_sparkling_talon",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1758396232927,
+      "tag": "0002_wild_leper_queen",
+      "breakpoints": true
     }
   ]
 }

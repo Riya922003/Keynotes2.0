@@ -17,6 +17,9 @@ export const documents = pgTable('documents', {
   color: text('color'),
   is_pinned: boolean('is_pinned').default(false),
   is_archived: boolean('is_archived').default(false),
+  reminder_date: timestamp('reminder_date'),
+  reminder_repeat: text('reminder_repeat'),
+  position: integer('position').notNull().default(0),
 });
 
 export type Document = typeof documents.$inferSelect;

@@ -18,7 +18,26 @@ import {
   Sparkles
 } from 'lucide-react'
 
-export default function CreateNoteForm() {
+interface CreateNoteFormProps {
+  onNoteCreated?: (newNote: {
+    id: string
+    title: string | null
+    content: unknown
+    type: 'note' | 'journal'
+    created_at: Date
+    updated_at: Date
+    author_id: string
+    workspace_id: string
+    color?: string | null
+    is_pinned?: boolean | null
+    is_archived?: boolean | null
+    reminder_date?: Date | null
+    reminder_repeat?: string | null
+    position?: number | null
+  }) => void
+}
+
+export default function CreateNoteForm({ onNoteCreated }: CreateNoteFormProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -102,7 +121,12 @@ export default function CreateNoteForm() {
     // Only submit if there's content to save
     if (title.trim() || content.trim()) {
       try {
-        await createNote(title.trim() || 'Untitled', content.trim(), selectedColor || undefined)
+        const newNote = await createNote(title.trim() || 'Untitled', content.trim(), selectedColor || undefined)
+        
+        // Call the parent callback to update the UI immediately
+        if (onNoteCreated && newNote) {
+          onNoteCreated(newNote)
+        }
       } catch (error) {
         console.error('Failed to create note:', error)
       }
@@ -131,7 +155,7 @@ export default function CreateNoteForm() {
     return (
       <div
         onClick={handlePlaceholderClick}
-        className="w-full max-w-2xl mx-auto p-4 border border-border rounded-lg bg-background hover:bg-accent/50 cursor-text transition-colors duration-200 shadow-sm"
+        className="w-full max-w-2xl mx-auto p-4 rounded-lg bg-background hover:bg-accent/50 cursor-text transition-colors duration-200 shadow-sm"
       >
         <div className="text-muted-foreground">
           Take a note...

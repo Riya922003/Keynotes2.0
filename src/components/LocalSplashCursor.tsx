@@ -24,34 +24,6 @@ interface LocalSplashCursorProps {
   TRANSPARENT?: boolean;
 }
 
-interface Pointer {
-  id: number;
-  texcoordX: number;
-  texcoordY: number;
-  prevTexcoordX: number;
-  prevTexcoordY: number;
-  deltaX: number;
-  deltaY: number;
-  down: boolean;
-  moved: boolean;
-  color: ColorRGB;
-}
-
-function pointerPrototype(): Pointer {
-  return {
-    id: -1,
-    texcoordX: 0,
-    texcoordY: 0,
-    prevTexcoordX: 0,
-    prevTexcoordY: 0,
-    deltaX: 0,
-    deltaY: 0,
-    down: false,
-    moved: false,
-    color: { r: 0, g: 0, b: 0 }
-  };
-}
-
 export default function LocalSplashCursor({
   SIM_RESOLUTION = 64,
   DYE_RESOLUTION = 512,

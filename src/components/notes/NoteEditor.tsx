@@ -142,32 +142,32 @@ export default function NoteEditor({ note }: NoteEditorProps) {
   const statusDisplay = getSaveStatusDisplay()
 
   return (
-    <div className="flex flex-col h-screen bg-background">
-      {/* Header with title input */}
-      <div className="border-b border-border p-4 flex-shrink-0">
+    <div className="flex flex-col w-full min-w-[300px] max-w-[500px]">
+      {/* Title input */}
+      <div className="mb-3">
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Untitled Note"
-          className="text-2xl font-bold border-none shadow-none focus-visible:ring-0 px-0"
-          style={{ fontSize: '1.5rem', fontWeight: 'bold' }}
+          placeholder="Take a note..."
+          className="text-lg font-semibold border-none shadow-none focus-visible:ring-0 px-0 bg-transparent placeholder:text-muted-foreground/60 resize-none"
+          style={{ fontSize: '1.125rem', fontWeight: '600' }}
         />
       </div>
 
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col relative">
-        {/* BlockNote editor */}
-        <div className="flex-1 p-4">
+      {/* BlockNote editor - compact responsive version */}
+      <div className="relative min-h-[150px] max-h-[350px] overflow-y-auto">
+        <div className="[&_.bn-editor]:!border-none [&_.bn-editor]:!shadow-none [&_.bn-editor]:!outline-none [&_.bn-editor]:!bg-transparent [&_.bn-editor_.bn-block-outer]:!border-none [&_.bn-editor_.bn-block-content]:!border-none [&_.bn-side-menu]:!hidden [&_.bn-drag-handle]:!hidden">
           <BlockNoteView 
             editor={editor} 
             theme="light"
-            className="min-h-full"
+            className="min-h-[150px] !border-none !outline-none !shadow-none"
+            sideMenu={false}
           />
         </div>
-
+        
         {/* Save status indicator */}
         {statusDisplay.text && (
-          <div className={`absolute top-4 right-4 text-sm ${statusDisplay.className} bg-background px-2 py-1 rounded shadow-sm`}>
+          <div className={`absolute top-2 right-2 text-xs ${statusDisplay.className} bg-background/90 px-2 py-1 rounded shadow-sm z-10`}>
             {statusDisplay.text}
           </div>
         )}

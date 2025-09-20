@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useOnClickOutside } from '@/lib/hooks/useOnClickOutside'
 import { createNote } from '@/app/actions/noteActions'
 import { Input } from '@/components/ui/input'
@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import LocalSplashCursor from '@/components/LocalSplashCursor'
+import { useTheme } from 'next-themes'
 import { 
   Palette, 
   Pin, 
@@ -24,19 +25,78 @@ export default function CreateNoteForm() {
   const [selectedColor, setSelectedColor] = useState<string | null>(null)
   const [isPinned, setIsPinned] = useState(false)
   const [showSplashCursor, setShowSplashCursor] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  const { theme } = useTheme()
   const formRef = useRef<HTMLDivElement>(null)
 
-  // Color options inspired by Google Keep
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Color options that work well in both light and dark modes
   const colorOptions = [
-    { name: 'Default', value: null, bg: 'bg-background' },
-    { name: 'Red', value: '#ffcdd2', bg: 'bg-red-100' },
-    { name: 'Orange', value: '#ffe0b2', bg: 'bg-orange-100' },
-    { name: 'Yellow', value: '#fff9c4', bg: 'bg-yellow-100' },
-    { name: 'Green', value: '#dcedc8', bg: 'bg-green-100' },
-    { name: 'Blue', value: '#bbdefb', bg: 'bg-blue-100' },
-    { name: 'Purple', value: '#e1bee7', bg: 'bg-purple-100' },
-    { name: 'Pink', value: '#f8bbd9', bg: 'bg-pink-100' },
+    { 
+      name: 'Default', 
+      value: null, 
+      light: 'bg-background', 
+      dark: 'bg-background',
+      textClass: 'text-foreground'
+    },
+    { 
+      name: 'Red', 
+      value: '#fee2e2', 
+      light: '#fee2e2', 
+      dark: '#7f1d1d',
+      textClass: 'text-red-900 dark:text-red-100'
+    },
+    { 
+      name: 'Orange', 
+      value: '#fed7aa', 
+      light: '#fed7aa', 
+      dark: '#9a3412',
+      textClass: 'text-orange-900 dark:text-orange-100'
+    },
+    { 
+      name: 'Yellow', 
+      value: '#fef3c7', 
+      light: '#fef3c7', 
+      dark: '#a16207',
+      textClass: 'text-yellow-900 dark:text-yellow-100'
+    },
+    { 
+      name: 'Green', 
+      value: '#dcfce7', 
+      light: '#dcfce7', 
+      dark: '#14532d',
+      textClass: 'text-green-900 dark:text-green-100'
+    },
+    { 
+      name: 'Blue', 
+      value: '#dbeafe', 
+      light: '#dbeafe', 
+      dark: '#1e3a8a',
+      textClass: 'text-blue-900 dark:text-blue-100'
+    },
+    { 
+      name: 'Purple', 
+      value: '#e9d5ff', 
+      light: '#e9d5ff', 
+      dark: '#581c87',
+      textClass: 'text-purple-900 dark:text-purple-100'
+    },
+    { 
+      name: 'Pink', 
+      value: '#fce7f3', 
+      light: '#fce7f3', 
+      dark: '#831843',
+      textClass: 'text-pink-900 dark:text-pink-100'
+    },
   ]
+
+  // Get the current color option for styling
+  const getCurrentColorOption = () => {
+    return colorOptions.find(color => color.value === selectedColor) || colorOptions[0]
+  }
 
   const handleSubmit = async () => {
     // Only submit if there's content to save
@@ -84,8 +144,14 @@ export default function CreateNoteForm() {
     <div className="relative">
       <div ref={formRef} className="w-full max-w-2xl mx-auto">
         <Card 
-          className="shadow-lg transition-colors duration-200" 
-          style={{ backgroundColor: selectedColor || undefined }}
+          className={`shadow-lg transition-colors duration-200 ${getCurrentColorOption().textClass}`}
+          style={{ 
+            backgroundColor: selectedColor && mounted ? (
+              theme === 'dark' 
+                ? getCurrentColorOption().dark 
+                : getCurrentColorOption().light
+            ) : undefined 
+          }}
         >
           <CardContent className="p-4 space-y-3 relative">
           {/* Title Input */}

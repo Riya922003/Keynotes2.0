@@ -37,7 +37,7 @@ export default function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
         
         <div className="py-4">
           {view === 'login' ? (
-            <LoginForm onSuccess={() => onOpenChange(false)} />
+            <LoginForm />
           ) : (
             <RegisterForm />
           )}

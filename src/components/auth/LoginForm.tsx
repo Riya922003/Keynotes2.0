@@ -1,10 +1,12 @@
 'use client'
 
+import { useState } from "react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -29,11 +31,8 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>
 
-interface LoginFormProps {
-  onSuccess?: () => void
-}
-
-export default function LoginForm({ onSuccess }: LoginFormProps) {
+export default function LoginForm() {
+  const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
 
@@ -46,6 +45,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
   })
 
   const onSubmit = async (values: FormData) => {
+    setIsLoading(true)
     try {
       const result = await signIn('credentials', {
         email: values.email,
@@ -60,9 +60,6 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
           description: "Invalid email or password",
         })
       } else if (result?.ok) {
-        // Success - close dialog first
-        onSuccess?.()
-        
         // Use Next.js router for proper client-side navigation
         router.push('/dashboard')
         router.refresh() // Ensure fresh session data
@@ -74,6 +71,8 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
         title: "Error",
         description: "Something went wrong. Please try again.",
       })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -119,6 +118,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
                   <Input 
                     placeholder="Enter your email" 
                     type="email"
+                    disabled={isLoading}
                     {...field} 
                   />
                 </FormControl>
@@ -137,6 +137,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
                   <Input 
                     placeholder="Enter your password" 
                     type="password"
+                    disabled={isLoading}
                     {...field} 
                   />
                 </FormControl>
@@ -145,8 +146,15 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
             )}
           />
           
-          <Button type="submit" className="w-full">
-            Login
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Logging in...
+              </>
+            ) : (
+              "Login"
+            )}
           </Button>
         </form>
       </Form>

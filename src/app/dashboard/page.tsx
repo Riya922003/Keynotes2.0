@@ -14,8 +14,13 @@ export default async function DashboardPage() {
 
   return (
     <>
+      {/* Top Right Theme Toggle */}
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggleButton />
+      </div>
+
       {/* Dashboard Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6">
         <div>
           <h1 className="text-3xl font-bold">
             Welcome back, {session.user?.name}!
@@ -24,7 +29,6 @@ export default async function DashboardPage() {
             Here&apos;s your personalized workspace. Start creating and organizing your thoughts.
           </p>
         </div>
-        <ThemeToggleButton />
       </div>
 
       <div className="space-y-6">

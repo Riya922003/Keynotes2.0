@@ -244,13 +244,6 @@ export default function NoteCard({
                 ×
               </Button>
             </div>
-
-            {/* Pin indicator */}
-            {note.is_pinned && (
-              <div className="absolute top-3 right-14">
-                <Pin className="w-4 h-4 text-muted-foreground" />
-              </div>
-            )}
             
             {/* Modal content with editor */}
             <div className="p-4 max-h-[calc(80vh-100px)] overflow-y-auto">
@@ -471,28 +464,38 @@ export default function NoteCard({
         </div>
       )}
 
-      {/* Pin indicator */}
-      {note.is_pinned && (
-        <div className="absolute top-2 right-2">
-          <Pin className="w-4 h-4 text-yellow-600 fill-current" />
-        </div>
-      )}
-
-      {/* Pin toggle button on hover */}
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        {!note.is_pinned && (
+      {/* Pin indicator and toggle button */}
+      <div className="absolute top-2 right-2">
+        {note.is_pinned ? (
+          // Pinned state - clicking unpins
           <Button
             variant="ghost"
             size="sm"
             className="h-6 w-6 p-0 hover:bg-muted/50 rounded-full"
-            title="Pin note"
+            title="Unpin note"
             onClick={(e) => {
               e.stopPropagation()
               handleTogglePin()
             }}
           >
-            <Pin className="w-3 h-3 text-muted-foreground" />
+            <Pin className="w-3 h-3 text-yellow-600 fill-current" />
           </Button>
+        ) : (
+          // Unpinned state - show pin button on hover
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 hover:bg-muted/50 rounded-full"
+              title="Pin note"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleTogglePin()
+              }}
+            >
+              <Pin className="w-3 h-3 text-muted-foreground" />
+            </Button>
+          </div>
         )}
       </div>
 

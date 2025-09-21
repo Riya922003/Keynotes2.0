@@ -22,12 +22,9 @@ interface NoteEditorProps {
   }
 }
 
-type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
-
 export default function NoteEditor({ note }: NoteEditorProps) {
   // Initialize state with note data
   const [title, setTitle] = useState(note.title || '')
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
 
   // Parse initial content for BlockNote
   const getInitialContent = () => {
@@ -75,26 +72,12 @@ export default function NoteEditor({ note }: NoteEditorProps) {
       return
     }
 
-    setSaveStatus('saving')
-
     try {
       // Convert BlockNote content to JSON string for storage
       const contentString = JSON.stringify(editorContent)
       await updateNote(note.id, noteTitle, contentString)
-      setSaveStatus('saved')
-      
-      // Reset to idle after showing "saved" status for a moment
-      setTimeout(() => {
-        setSaveStatus('idle')
-      }, 2000)
     } catch (error) {
       console.error('Failed to save note:', error)
-      setSaveStatus('error')
-      
-      // Reset to idle after showing error for a moment
-      setTimeout(() => {
-        setSaveStatus('idle')
-      }, 3000)
     }
   }, [note.id, note.title, note.content])
 
@@ -125,22 +108,6 @@ export default function NoteEditor({ note }: NoteEditorProps) {
     }
   }, [editor, title, autoSave])
 
-  // Get save status text and styling
-  const getSaveStatusDisplay = () => {
-    switch (saveStatus) {
-      case 'saving':
-        return { text: 'Saving...', className: 'text-yellow-600' }
-      case 'saved':
-        return { text: 'All changes saved', className: 'text-green-600' }
-      case 'error':
-        return { text: 'Failed to save', className: 'text-red-600' }
-      default:
-        return { text: '', className: '' }
-    }
-  }
-
-  const statusDisplay = getSaveStatusDisplay()
-
   return (
     <div className="flex flex-col w-full min-w-[300px] max-w-[500px]">
       {/* Title input */}
@@ -164,13 +131,6 @@ export default function NoteEditor({ note }: NoteEditorProps) {
             sideMenu={false}
           />
         </div>
-        
-        {/* Save status indicator */}
-        {statusDisplay.text && (
-          <div className={`absolute top-2 right-2 text-xs ${statusDisplay.className} bg-background/90 px-2 py-1 rounded shadow-sm z-10`}>
-            {statusDisplay.text}
-          </div>
-        )}
       </div>
     </div>
   )

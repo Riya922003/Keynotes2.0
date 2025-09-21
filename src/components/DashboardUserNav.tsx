@@ -3,13 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
-import AuthDialog from './auth/AuthDialog';
 import Spinner from './Spinner';
 
-export function UserNav() {
+export function DashboardUserNav() {
   const [mounted, setMounted] = useState(false);
   const { data: session, status } = useSession();
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -26,20 +24,19 @@ export function UserNav() {
 
   return (
     <div className="flex items-center gap-2">
-      {!session ? (
+      {session && (
         <>
+          <span className="text-sm text-muted-foreground truncate max-w-[120px]">
+            Welcome, {session.user?.name || 'User'}
+          </span>
           <Button 
-            onClick={() => setIsModalOpen(true)}
+            variant="outline" 
+            onClick={() => signOut({ callbackUrl: '/' })}
             className="min-w-[80px]"
           >
-            Sign In
+            Sign Out
           </Button>
-          <AuthDialog open={isModalOpen} onOpenChange={setIsModalOpen} />
         </>
-      ) : (
-        <span className="text-sm text-muted-foreground truncate max-w-[120px]">
-          Welcome, {session.user?.name || 'User'}
-        </span>
       )}
     </div>
   );

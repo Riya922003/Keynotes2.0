@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { authOptions } from "@/lib/auth"
 import HelpFAB from "@/components/HelpFAB"
 import { ThemeToggleButton } from "@/components/ThemeToggleButton"
+import { DashboardUserNav } from "@/components/DashboardUserNav"
 import Link from "next/link"
 
 export default async function DashboardPage() {
@@ -14,8 +15,9 @@ export default async function DashboardPage() {
 
   return (
     <>
-      {/* Top Right Theme Toggle */}
-      <div className="fixed top-4 right-4 z-50">
+      {/* Top Right Controls */}
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-4">
+        <DashboardUserNav />
         <ThemeToggleButton />
       </div>
 

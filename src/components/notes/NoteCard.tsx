@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Pin, GripVertical, Palette, Bell, Archive, MoreHorizontal, Trash2 } from 'lucide-react'
@@ -254,18 +255,28 @@ export default function NoteCard({
     opacity: isDragging ? 0.5 : 1,
   }
 
-  // If editing, render a modal overlay
-  if (isEditing) {
-    return (
+  // If editing, render a modal overlay using portal
+  if (isEditing && typeof document !== 'undefined') {
+    return createPortal(
       <>
         {/* Modal backdrop */}
         <div 
-          className="fixed inset-0 bg-black/50 z-40"
+          className="fixed inset-0 bg-black/50 z-[9998]"
           onClick={() => onToggleEdit(null)}
         />
         
         {/* Modal note editor */}
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 flex items-center justify-center z-[9999] p-4">
+          <div
+            className="w-full h-full flex items-center justify-center"
+            data-note-editor-modal="true"
+            onClick={(e) => {
+              // Only close if clicking this container, not its children
+              if (e.target === e.currentTarget) {
+                onToggleEdit(null)
+              }
+            }}
+          >
           <Card 
             className="relative bg-background border rounded-lg shadow-2xl min-w-[320px] max-w-[600px] w-auto max-h-[80vh] overflow-hidden"
             style={{
@@ -275,11 +286,17 @@ export default function NoteCard({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close button */}
-            <div className="absolute top-3 right-3 z-20">
+            <div 
+              className="absolute top-3 right-3 z-[50]"
+              onClick={(e) => e.stopPropagation()}
+            >
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onToggleEdit(null)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onToggleEdit(null)
+                }}
                 className="h-8 w-8 p-0 hover:bg-muted/50 rounded-full"
               >
                 ×
@@ -287,12 +304,18 @@ export default function NoteCard({
             </div>
             
             {/* Modal content with editor */}
-            <div className="p-4 max-h-[calc(80vh-100px)] overflow-y-auto">
+            <div 
+              className="p-4 max-h-[calc(80vh-100px)] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
               <NoteEditor note={note} />
             </div>
 
             {/* Note actions/features bar at bottom */}
-            <div className="absolute bottom-0 left-0 right-0 flex justify-between items-center bg-background/95 backdrop-blur-sm border-t p-3">
+            <div 
+              className="absolute bottom-0 left-0 right-0 flex justify-between items-center bg-background/95 backdrop-blur-sm border-t p-3"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span>Edited {new Date(note.updated_at).toLocaleDateString()}</span>
               </div>
@@ -316,7 +339,7 @@ export default function NoteCard({
                   {/* Color picker dropdown */}
                   {showColorPicker && (
                     <div 
-                      className="absolute bottom-full mb-2 left-0 bg-background border rounded-lg shadow-lg p-2 z-50 color-picker-dropdown"
+                      className="absolute bottom-full mb-2 left-0 bg-background border rounded-lg shadow-lg p-2 z-[60] color-picker-dropdown"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="grid grid-cols-4 gap-1 w-32">
@@ -439,6 +462,7 @@ export default function NoteCard({
               </div>
             </div>
           </Card>
+          </div>
         </div>
         
         {/* Render the original card but dimmed/hidden */}
@@ -468,7 +492,8 @@ export default function NoteCard({
             </CardDescription>
           </CardHeader>
         </Card>
-      </>
+      </>,
+      document.body
     )
   }
 

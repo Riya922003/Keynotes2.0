@@ -288,7 +288,7 @@ export default function ReminderPicker({ noteId, currentReminder, onReminderSet,
 
   return (
     <div 
-      className="absolute bottom-full mb-2 right-0 bg-background border rounded-lg shadow-lg p-2 z-50 min-w-[180px] reminder-picker-dropdown"
+      className="absolute bottom-full mb-2 -right-2 bg-background border rounded-lg shadow-lg p-2 z-[10000] min-w-[180px] reminder-picker-dropdown"
       onClick={(e) => e.stopPropagation()}
     >
       <div className="flex flex-col gap-1">

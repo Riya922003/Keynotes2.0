@@ -50,6 +50,11 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
         return
       }
       
+      // Don't close if clicking inside the note editor modal
+      if (target.closest('[data-note-editor-modal="true"]')) {
+        return
+      }
+      
       // Check if click is outside the notes container and a note is being edited
       if (
         editingNoteId && 

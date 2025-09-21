@@ -402,6 +402,39 @@ export async function updateNoteReminder(
   }
 }
 
+export async function removeNoteReminder(noteId: string) {
+  const session = await getServerSession(authOptions)
+  
+  if (!session?.user?.id) {
+    throw new Error('Authentication required')
+  }
+
+  try {
+    // Remove reminder by setting both fields to null
+    const updatedNote = await db
+      .update(documents)
+      .set({
+        reminder_date: null,
+        reminder_repeat: null,
+        updated_at: new Date(),
+      })
+      .where(eq(documents.id, noteId))
+      .returning()
+
+    if (updatedNote.length === 0) {
+      throw new Error('Note not found')
+    }
+
+    // Revalidate the notes page
+    revalidatePath('/notes')
+    
+    return updatedNote[0]
+  } catch (error) {
+    console.error('Error removing note reminder:', error)
+    throw new Error('Failed to remove note reminder')
+  }
+}
+
 export async function updateNoteOrder(notes: { id: string; position: number }[]) {
   const session = await getServerSession(authOptions)
   

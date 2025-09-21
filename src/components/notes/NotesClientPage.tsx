@@ -58,6 +58,13 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
   // Centralized click outside logic
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      
+      // Don't close if clicking inside the reminder modal
+      if (target.closest('[data-reminder-modal="true"]')) {
+        return
+      }
+      
       // Check if click is outside the notes container and a note is being edited
       if (
         editingNoteId && 

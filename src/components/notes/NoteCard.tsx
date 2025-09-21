@@ -1,13 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Pin, GripVertical, Palette, Bell, Archive, MoreHorizontal, Trash2 } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import NoteEditor from './NoteEditor'
-import { deleteNote, updateNote } from '@/app/actions/noteActions'
+import ReminderPicker from './ReminderPicker'
+import { deleteNote, updateNote, toggleArchiveNote, removeNoteReminder } from '@/app/actions/noteActions'
 
 interface NoteCardProps {
   note: {
@@ -49,9 +51,11 @@ export default function NoteCard({
   onNoteDeleted, 
   onNoteUpdated 
 }: NoteCardProps) {
+  const router = useRouter()
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [showReminderPicker, setShowReminderPicker] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isRemovingReminder, setIsRemovingReminder] = useState(false)
   
   // Predefined colors for notes
   const noteColors = [
@@ -82,10 +86,15 @@ export default function NoteCard({
     }
   }
 
-  const handleReminderSet = async () => {
-    // TODO: Implement actual reminder functionality
-    console.log('Setting reminder for note:', note.id)
+  const handleReminderSet = async (reminder: { date: Date | null, repeat: string | null }) => {
+    // Close the reminder picker
     setShowReminderPicker(false)
+    
+    // Update the parent component's state immediately
+    onNoteUpdated?.(note.id, { 
+      reminder_date: reminder.date, 
+      reminder_repeat: reminder.repeat 
+    })
   }
 
   const handleDeleteNote = async () => {
@@ -117,9 +126,43 @@ export default function NoteCard({
     }
   }
 
+  const handleToggleArchive = async () => {
+    try {
+      await toggleArchiveNote(note.id)
+      // Call the callback to update parent component's state
+      onNoteUpdated?.(note.id, { is_archived: !note.is_archived })
+    } catch (error) {
+      console.error('Failed to toggle archive:', error)
+    }
+  }
+
+  const handleRemoveReminder = async () => {
+    if (isRemovingReminder) return // Prevent double clicks
+    
+    setIsRemovingReminder(true)
+    try {
+      await removeNoteReminder(note.id)
+      // Update the parent component's state immediately
+      onNoteUpdated?.(note.id, { reminder_date: null, reminder_repeat: null })
+    } catch (error) {
+      console.error('Failed to remove reminder:', error)
+    } finally {
+      setIsRemovingReminder(false)
+    }
+  }
+
   // Close dropdowns when clicking outside
   useEffect(() => {
-    const handleClickOutside = () => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      
+      // Don't close if clicking inside the reminder picker or color picker
+      if (target.closest('.reminder-picker-dropdown') || 
+          target.closest('.color-picker-dropdown') ||
+          target.closest('[data-reminder-modal="true"]')) {
+        return
+      }
+      
       setShowColorPicker(false)
       setShowReminderPicker(false)
     }
@@ -274,7 +317,10 @@ export default function NoteCard({
                   
                   {/* Color picker dropdown */}
                   {showColorPicker && (
-                    <div className="absolute bottom-full mb-2 left-0 bg-background border rounded-lg shadow-lg p-2 z-50">
+                    <div 
+                      className="absolute bottom-full mb-2 left-0 bg-background border rounded-lg shadow-lg p-2 z-50 color-picker-dropdown"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <div className="grid grid-cols-4 gap-1 w-32">
                         {noteColors.map((color) => (
                           <button
@@ -297,55 +343,42 @@ export default function NoteCard({
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    className="h-8 w-8 p-0 hover:bg-muted/50 rounded-full"
-                    title="Add reminder"
+                    className={`h-8 w-8 p-0 hover:bg-muted/50 rounded-full ${note.reminder_date ? 'text-blue-600' : ''}`}
+                    title={note.reminder_date ? "Remove reminder (right-click to edit)" : "Add reminder"}
                     onClick={(e) => {
                       e.stopPropagation()
+                      if (note.reminder_date) {
+                        // If reminder is set, remove it on left click
+                        handleRemoveReminder()
+                      } else {
+                        // If no reminder, open picker
+                        setShowReminderPicker(!showReminderPicker)
+                        setShowColorPicker(false)
+                      }
+                    }}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      // Right-click opens picker for editing even if reminder is set
                       setShowReminderPicker(!showReminderPicker)
                       setShowColorPicker(false)
                     }}
+                    disabled={isRemovingReminder}
                   >
-                    <Bell className="w-4 h-4" />
+                    <Bell className={`w-4 h-4 ${note.reminder_date ? (isRemovingReminder ? 'text-muted-foreground' : 'fill-current') : ''}`} />
                   </Button>
                   
                   {/* Reminder picker dropdown */}
                   {showReminderPicker && (
-                    <div className="absolute bottom-full mb-2 right-0 bg-background border rounded-lg shadow-lg p-2 z-50 min-w-[150px]">
-                      <div className="flex flex-col gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="justify-start text-sm"
-                          onClick={() => handleReminderSet()}
-                        >
-                          Later today
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="justify-start text-sm"
-                          onClick={() => handleReminderSet()}
-                        >
-                          Tomorrow
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="justify-start text-sm"
-                          onClick={() => handleReminderSet()}
-                        >
-                          Next week
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="justify-start text-sm"
-                          onClick={() => handleReminderSet()}
-                        >
-                          Pick date & time
-                        </Button>
-                      </div>
-                    </div>
+                    <ReminderPicker
+                      noteId={note.id}
+                      currentReminder={{
+                        date: note.reminder_date,
+                        repeat: note.reminder_repeat
+                      }}
+                      onReminderSet={handleReminderSet}
+                      onClose={() => setShowReminderPicker(false)}
+                    />
                   )}
                 </div>
                 
@@ -353,14 +386,14 @@ export default function NoteCard({
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="h-8 w-8 p-0 hover:bg-muted/50 rounded-full"
-                  title="Archive"
+                  className={`h-8 w-8 p-0 hover:bg-muted/50 rounded-full ${note.is_archived ? 'text-orange-600' : ''}`}
+                  title={note.is_archived ? "Unarchive" : "Archive"}
                   onClick={(e) => {
                     e.stopPropagation()
-                    console.log('Archiving note:', note.id)
+                    handleToggleArchive()
                   }}
                 >
-                  <Archive className="w-4 h-4" />
+                  <Archive className={`w-4 h-4 ${note.is_archived ? 'fill-current' : ''}`} />
                 </Button>
                 
                 {/* Pin/Unpin */}
@@ -465,9 +498,26 @@ export default function NoteCard({
       )}
 
       {/* Pin indicator and toggle button */}
-      <div className="absolute top-2 right-2">
+      <div className="absolute top-2 right-2 flex items-center gap-1">
+        {/* Reminder indicator - show when reminder is set */}
+        {note.reminder_date && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 hover:bg-muted/50 rounded-full"
+            title="Remove reminder"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleRemoveReminder()
+            }}
+            disabled={isRemovingReminder}
+          >
+            <Bell className={`w-3 h-3 ${isRemovingReminder ? 'text-muted-foreground' : 'text-blue-600 fill-current'}`} />
+          </Button>
+        )}
+        
         {note.is_pinned ? (
-          // Pinned state - clicking unpins
+          /* Pinned state - clicking unpins */
           <Button
             variant="ghost"
             size="sm"
@@ -481,7 +531,7 @@ export default function NoteCard({
             <Pin className="w-3 h-3 text-yellow-600 fill-current" />
           </Button>
         ) : (
-          // Unpinned state - show pin button on hover
+          /* Unpinned state - show pin button on hover */
           <div className="opacity-0 group-hover:opacity-100 transition-opacity">
             <Button
               variant="ghost"
@@ -500,7 +550,7 @@ export default function NoteCard({
       </div>
 
       {/* Delete button on hover - position next to pin icon */}
-      <div className={`absolute top-2 opacity-0 group-hover:opacity-100 transition-opacity ${note.is_pinned ? 'right-8' : 'right-8'}`}>
+      <div className={`absolute top-2 opacity-0 group-hover:opacity-100 transition-opacity ${note.is_pinned || note.reminder_date ? 'right-14' : 'right-8'}`}>
         <Button
           variant="ghost"
           size="sm"
@@ -524,6 +574,27 @@ export default function NoteCard({
         <CardDescription className="text-sm text-muted-foreground line-clamp-3">
           {getContentPreview()}
         </CardDescription>
+        {/* Reminder info */}
+        {note.reminder_date && (
+          <div className="text-xs text-blue-600 mt-2 flex items-center gap-1">
+            <Bell className="w-3 h-3" />
+            <span>
+              Reminder: {new Date(note.reminder_date).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: '2-digit', 
+                day: '2-digit' 
+              })} at{' '}
+              {new Date(note.reminder_date).toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false
+              })}
+              {note.reminder_repeat && note.reminder_repeat !== "Doesn't repeat" && (
+                <span className="ml-1">({note.reminder_repeat})</span>
+              )}
+            </span>
+          </div>
+        )}
       </CardHeader>
     </Card>
   )

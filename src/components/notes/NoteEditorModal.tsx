@@ -52,8 +52,7 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
   }
 
   const handleColorChange = () => {
-    // Placeholder for color functionality
-    console.log('Color change not implemented yet')
+    // Future: implement color change functionality
   }
 
   return (

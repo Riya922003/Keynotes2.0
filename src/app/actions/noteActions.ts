@@ -152,21 +152,15 @@ export async function updateNote(
 }
 
 export async function deleteNote(noteId: string) {
-  console.log('Attempting to delete note:', noteId)
-  
   try {
     const session = await getServerSession(authOptions)
     
     if (!session?.user?.id) {
-      console.log('No session found')
       throw new Error('Authentication required')
     }
 
-    console.log('Session found, user ID:', session.user.id)
-
     // Ensure noteId is properly formatted and not empty
     if (!noteId || typeof noteId !== 'string' || noteId.trim() === '') {
-      console.log('Invalid note ID provided:', noteId)
       throw new Error('Invalid note ID')
     }
 
@@ -179,27 +173,19 @@ export async function deleteNote(noteId: string) {
       .where(eq(documents.id, trimmedNoteId))
       .limit(1)
 
-    console.log('Database query result:', noteToDelete)
-
     if (noteToDelete.length === 0) {
-      console.log('Note not found:', trimmedNoteId)
       throw new Error('Note not found')
     }
 
     if (noteToDelete[0].author_id !== session.user.id) {
-      console.log('Unauthorized delete attempt for note:', trimmedNoteId)
       throw new Error('You can only delete your own notes')
     }
-
-    console.log('Deleting note:', trimmedNoteId)
     
     // Delete the note
     const deletedNote = await db
       .delete(documents)
       .where(eq(documents.id, trimmedNoteId))
       .returning({ id: documents.id })
-
-    console.log('Delete operation result:', deletedNote)
 
     if (deletedNote.length === 0) {
       throw new Error('Note could not be deleted')
@@ -208,11 +194,9 @@ export async function deleteNote(noteId: string) {
     // Revalidate the notes page
     revalidatePath('/notes')
     
-    console.log('Note deleted successfully:', trimmedNoteId)
     return { success: true, deletedNoteId: deletedNote[0].id }
     
   } catch (error) {
-    console.error('Error in deleteNote function:', error)
     throw error
   }
 }
@@ -442,8 +426,6 @@ export async function updateNoteOrder(notes: { id: string; position: number }[])
     throw new Error('Authentication required')
   }
 
-  console.log('Updating note order for', notes.length, 'notes')
-
   try {
     let successCount = 0
     let errorCount = 0
@@ -456,16 +438,12 @@ export async function updateNoteOrder(notes: { id: string; position: number }[])
           .set({ position: note.position, updated_at: new Date() })
           .where(eq(documents.id, note.id))
           
-        console.log(`Updated position for note ${note.id} to ${note.position}`)
         successCount++
       } catch (noteError) {
-        console.error(`Failed to update note ${note.id}:`, noteError)
         errorCount++
         // Continue with other notes instead of throwing
       }
     }
-
-    console.log(`Position update completed: ${successCount} successful, ${errorCount} failed`)
 
     // Revalidate the notes page
     revalidatePath('/notes')
@@ -477,14 +455,12 @@ export async function updateNoteOrder(notes: { id: string; position: number }[])
     
     return { success: true, updated: successCount, failed: errorCount }
   } catch (error) {
-    console.error('Error updating note order:', error)
     // Instead of throwing, return a more graceful response
     if (error instanceof Error && error.message.includes('Authentication required')) {
       throw error
     }
     
     // For other errors, log but don't crash the drag operation
-    console.warn('Note order update failed, but drag operation will continue')
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Pin, GripVertical, Palette, Bell, Archive, MoreHorizontal, Trash2 } from 'lucide-react'
@@ -51,7 +50,6 @@ export default function NoteCard({
   onNoteDeleted, 
   onNoteUpdated 
 }: NoteCardProps) {
-  const router = useRouter()
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [showReminderPicker, setShowReminderPicker] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -433,7 +431,7 @@ export default function NoteCard({
                   title="More"
                   onClick={(e) => {
                     e.stopPropagation()
-                    console.log('More options for note:', note.id)
+                    // Future: implement more options menu
                   }}
                 >
                   <MoreHorizontal className="w-4 h-4" />
@@ -478,10 +476,12 @@ export default function NoteCard({
   return (
     <Card 
       ref={setNodeRef}
-      className="relative hover:shadow-md transition-shadow cursor-pointer group overflow-visible"
+      className="relative hover:shadow-md transition-all duration-300 ease-in-out cursor-pointer group overflow-visible transform hover:scale-[1.02]"
       style={{
         ...style,
         backgroundColor: note.color || undefined,
+        // Add a subtle glow for pinned notes
+        boxShadow: note.is_pinned ? '0 0 0 2px rgba(255, 193, 7, 0.3)' : undefined,
       }}
       onClick={() => onToggleEdit(note.id)}
       {...attributes}
@@ -549,8 +549,15 @@ export default function NoteCard({
         )}
       </div>
 
-      {/* Delete button on hover - position next to pin icon */}
-      <div className={`absolute top-2 opacity-0 group-hover:opacity-100 transition-opacity ${note.is_pinned || note.reminder_date ? 'right-14' : 'right-8'}`}>
+      {/* Delete button on hover - position dynamically based on other icons */}
+      <div className={`absolute top-2 opacity-0 group-hover:opacity-100 transition-opacity ${
+        // Calculate position based on how many icons are present
+        (() => {
+          let iconCount = 1; // Always have pin icon
+          if (note.reminder_date) iconCount++; // Add reminder icon if present
+          return iconCount === 1 ? 'right-8' : iconCount === 2 ? 'right-14' : 'right-20';
+        })()
+      }`}>
         <Button
           variant="ghost"
           size="sm"

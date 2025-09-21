@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { DndContext, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable'
+import { Pin } from 'lucide-react'
 import Navigation from '@/components/navigation/Navigation'
 import NoteCard from '@/components/notes/NoteCard'
 import CreateNoteForm from '@/components/notes/CreateNoteForm'
@@ -29,24 +30,8 @@ interface NotesClientPageProps {
 }
 
 export default function NotesClientPage({ initialNotes }: NotesClientPageProps) {
-  // Sort notes: pinned notes first, then by position, then by updated_at
-  const sortedInitialNotes = [...initialNotes].sort((a, b) => {
-    // First priority: pinned notes come first
-    if (a.is_pinned && !b.is_pinned) return -1
-    if (!a.is_pinned && b.is_pinned) return 1
-    
-    // Second priority: position
-    const positionA = a.position ?? 999999
-    const positionB = b.position ?? 999999
-    if (positionA !== positionB) {
-      return positionA - positionB
-    }
-    
-    // Third priority: updated_at for notes without position
-    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-  })
-
-  const [notes, setNotes] = useState(sortedInitialNotes)
+  // Don't sort initially - maintain original order and handle pinned/unpinned separately
+  const [notes, setNotes] = useState(initialNotes)
   const [mounted, setMounted] = useState(false)
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const notesContainerRef = useRef<HTMLDivElement>(null)
@@ -86,22 +71,7 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
 
   // Function to handle note creation
   const handleNoteCreated = (newNote: typeof notes[0]) => {
-    setNotes(prevNotes => {
-      const updatedNotes = [newNote, ...prevNotes]
-      // Re-sort to maintain pinned notes at the top
-      return updatedNotes.sort((a, b) => {
-        if (a.is_pinned && !b.is_pinned) return -1
-        if (!a.is_pinned && b.is_pinned) return 1
-        
-        const positionA = a.position ?? 999999
-        const positionB = b.position ?? 999999
-        if (positionA !== positionB) {
-          return positionA - positionB
-        }
-        
-        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-      })
-    })
+    setNotes(prevNotes => [newNote, ...prevNotes])
   }
 
   // Function to handle note deletion from client state
@@ -111,24 +81,11 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
 
   // Function to handle note updates (like pin status changes)
   const handleNoteUpdated = (updatedNoteId: string, updates: Partial<typeof notes[0]>) => {
-    setNotes(prevNotes => {
-      const updatedNotes = prevNotes.map(note => 
+    setNotes(prevNotes => 
+      prevNotes.map(note => 
         note.id === updatedNoteId ? { ...note, ...updates } : note
       )
-      // Re-sort to maintain pinned notes at the top
-      return updatedNotes.sort((a, b) => {
-        if (a.is_pinned && !b.is_pinned) return -1
-        if (!a.is_pinned && b.is_pinned) return 1
-        
-        const positionA = a.position ?? 999999
-        const positionB = b.position ?? 999999
-        if (positionA !== positionB) {
-          return positionA - positionB
-        }
-        
-        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-      })
-    })
+    )
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -144,7 +101,6 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
 
     // Prevent dragging pinned notes or dropping onto pinned notes
     if (activeNote?.is_pinned || overNote?.is_pinned) {
-      console.log('Cannot reorder pinned notes')
       return
     }
 
@@ -164,12 +120,9 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
       }))
 
       try {
-        console.log('Updating note order for', notesWithNewPositions.length, 'notes')
         // Update positions in the database
         await updateNoteOrder(notesWithNewPositions)
-        console.log('Note order updated successfully')
       } catch (error) {
-        console.error('Failed to update note order:', error)
         // Revert on error
         setNotes(notes)
       }
@@ -192,51 +145,167 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
           {/* Create Note Form */}
           <CreateNoteForm onNoteCreated={handleNoteCreated} />
 
-          {/* Notes Grid */}
+          {/* Notes Layout - Separate Pinned and Unpinned */}
           {mounted ? (
             <DndContext onDragEnd={handleDragEnd}>
-              <SortableContext items={notes.map(note => note.id)} strategy={rectSortingStrategy}>
-                <div ref={notesContainerRef} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <SortableContext items={notes.filter(note => !note.is_pinned).map(note => note.id)} strategy={rectSortingStrategy}>
+                <div ref={notesContainerRef} className="space-y-6">
                   {notes.length === 0 ? (
-                    <div className="col-span-full text-center py-12">
+                    <div className="text-center py-12">
                       <p className="text-muted-foreground text-lg">
                         You have no notes yet. Create one!
                       </p>
                     </div>
                   ) : (
-                    notes.map((note) => (
-                      <NoteCard 
-                        key={note.id} 
-                        note={note} 
-                        isEditing={editingNoteId === note.id}
-                        onToggleEdit={setEditingNoteId}
-                        onNoteDeleted={handleNoteDeleted}
-                        onNoteUpdated={handleNoteUpdated}
-                      />
-                    ))
+                    <>
+                      {/* Pinned Notes Section */}
+                      {notes.some(note => note.is_pinned) && (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2">
+                            <Pin className="w-4 h-4 text-yellow-600" />
+                            <h2 className="text-lg font-semibold text-muted-foreground">Pinned Notes</h2>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 transition-all duration-300 ease-in-out">
+                            {notes
+                              .filter(note => note.is_pinned)
+                              .map((note, index) => (
+                                <div 
+                                  key={note.id}
+                                  className="transition-all duration-300 ease-in-out transform"
+                                  style={{
+                                    transitionProperty: 'transform, opacity',
+                                    transitionDelay: `${index * 50}ms`,
+                                  }}
+                                >
+                                  <NoteCard 
+                                    note={note} 
+                                    isEditing={editingNoteId === note.id}
+                                    onToggleEdit={setEditingNoteId}
+                                    onNoteDeleted={handleNoteDeleted}
+                                    onNoteUpdated={handleNoteUpdated}
+                                  />
+                                </div>
+                              ))
+                            }
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Unpinned Notes Section */}
+                      {notes.some(note => !note.is_pinned) && (
+                        <div className="space-y-4">
+                          {notes.some(note => note.is_pinned) && (
+                            <div className="flex items-center gap-2">
+                              <h2 className="text-lg font-semibold text-muted-foreground">Other Notes</h2>
+                            </div>
+                          )}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 transition-all duration-300 ease-in-out">
+                            {notes
+                              .filter(note => !note.is_pinned)
+                              .map((note, index) => (
+                                <div 
+                                  key={note.id}
+                                  className="transition-all duration-300 ease-in-out transform"
+                                  style={{
+                                    transitionProperty: 'transform, opacity',
+                                    transitionDelay: `${index * 50}ms`,
+                                  }}
+                                >
+                                  <NoteCard 
+                                    note={note} 
+                                    isEditing={editingNoteId === note.id}
+                                    onToggleEdit={setEditingNoteId}
+                                    onNoteDeleted={handleNoteDeleted}
+                                    onNoteUpdated={handleNoteUpdated}
+                                  />
+                                </div>
+                              ))
+                            }
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </SortableContext>
             </DndContext>
           ) : (
-            <div ref={notesContainerRef} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div ref={notesContainerRef} className="space-y-6">
               {notes.length === 0 ? (
-                <div className="col-span-full text-center py-12">
+                <div className="text-center py-12">
                   <p className="text-muted-foreground text-lg">
                     You have no notes yet. Create one!
                   </p>
                 </div>
               ) : (
-                notes.map((note) => (
-                  <NoteCard 
-                    key={note.id} 
-                    note={note} 
-                    isEditing={editingNoteId === note.id}
-                    onToggleEdit={setEditingNoteId}
-                    onNoteDeleted={handleNoteDeleted}
-                    onNoteUpdated={handleNoteUpdated}
-                  />
-                ))
+                <>
+                  {/* Pinned Notes Section */}
+                  {notes.some(note => note.is_pinned) && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Pin className="w-4 h-4 text-yellow-600" />
+                        <h2 className="text-lg font-semibold text-muted-foreground">Pinned Notes</h2>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 transition-all duration-300 ease-in-out">
+                        {notes
+                          .filter(note => note.is_pinned)
+                          .map((note, index) => (
+                            <div 
+                              key={note.id}
+                              className="transition-all duration-300 ease-in-out transform"
+                              style={{
+                                transitionProperty: 'transform, opacity',
+                                transitionDelay: `${index * 50}ms`,
+                              }}
+                            >
+                              <NoteCard 
+                                note={note} 
+                                isEditing={editingNoteId === note.id}
+                                onToggleEdit={setEditingNoteId}
+                                onNoteDeleted={handleNoteDeleted}
+                                onNoteUpdated={handleNoteUpdated}
+                              />
+                            </div>
+                          ))
+                        }
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Unpinned Notes Section */}
+                  {notes.some(note => !note.is_pinned) && (
+                    <div className="space-y-4">
+                      {notes.some(note => note.is_pinned) && (
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-lg font-semibold text-muted-foreground">Other Notes</h2>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 transition-all duration-300 ease-in-out">
+                        {notes
+                          .filter(note => !note.is_pinned)
+                          .map((note, index) => (
+                            <div 
+                              key={note.id}
+                              className="transition-all duration-300 ease-in-out transform"
+                              style={{
+                                transitionProperty: 'transform, opacity',
+                                transitionDelay: `${index * 50}ms`,
+                              }}
+                            >
+                              <NoteCard 
+                                note={note} 
+                                isEditing={editingNoteId === note.id}
+                                onToggleEdit={setEditingNoteId}
+                                onNoteDeleted={handleNoteDeleted}
+                                onNoteUpdated={handleNoteUpdated}
+                              />
+                            </div>
+                          ))
+                        }
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

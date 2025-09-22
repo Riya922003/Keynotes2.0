@@ -1,6 +1,6 @@
-'use server'
+ 'use server'
 
-import { eq } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { documents } from '@/lib/db/schema/documents'
 import { workspaces } from '@/lib/db/schema/workspaces'
@@ -76,7 +76,7 @@ export async function updateNote(
   noteId: string, 
   title: string, 
   content: string, 
-  color?: string, 
+  color?: string | null, 
   isPinned?: boolean, 
   isArchived?: boolean,
   reminderDate?: string,
@@ -105,7 +105,7 @@ export async function updateNote(
       updated_at: new Date(),
     }
 
-    // Only include color if it's provided
+    // Only include color if it's provided (accept null to clear)
     if (color !== undefined) {
       updateData.color = color
     }
@@ -439,7 +439,7 @@ export async function updateNoteOrder(notes: { id: string; position: number }[])
           .where(eq(documents.id, note.id))
           
         successCount++
-      } catch (noteError) {
+      } catch {
         errorCount++
         // Continue with other notes instead of throwing
       }
@@ -464,3 +464,106 @@ export async function updateNoteOrder(notes: { id: string; position: number }[])
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
+
+// Toggle the starred status of a note
+export async function toggleStarNote(noteId: string) {
+  const session = await getServerSession(authOptions)
+  
+  if (!session?.user?.id) {
+    throw new Error('Authentication required')
+  }
+
+  try {
+    // Get the current note to check its starred status
+    const currentNote = await db
+      .select()
+      .from(documents)
+      .where(eq(documents.id, noteId))
+      .limit(1)
+
+    if (currentNote.length === 0) {
+      throw new Error('Note not found')
+    }
+
+    // Verify ownership
+    if (currentNote[0].author_id !== session.user.id) {
+      throw new Error('Unauthorized access to note')
+    }
+
+    // Toggle the starred status
+    const updatedNote = await db
+      .update(documents)
+      .set({
+        is_starred: !currentNote[0].is_starred,
+        updated_at: new Date(),
+      })
+      .where(eq(documents.id, noteId))
+      .returning()
+
+    // Revalidate the notes page
+    revalidatePath('/notes')
+
+    return updatedNote[0]
+  } catch (error) {
+    console.error('Error toggling star status:', error)
+    throw new Error('Failed to toggle star status')
+  }
+}
+
+// Get counts for sidebar: non-archived notes, archived notes, and starred notes
+export async function getSidebarCounts() {
+  const session = await getServerSession(authOptions)
+
+  if (!session?.user?.id) {
+    throw new Error('Authentication required')
+  }
+
+  try {
+    // Efficient COUNT queries
+    // Use SQL IS TRUE / IS NOT TRUE to correctly handle NULL values created before
+    // the column had a default. Treat NULL as not archived (IS NOT TRUE).
+    const notesCountRes = await db
+      .select({ count: sql`count(*)` })
+      .from(documents)
+      .where(and(
+        eq(documents.author_id, session.user.id),
+        sql`${documents.is_archived} IS NOT TRUE`,
+        eq(documents.type, 'note')
+      ))
+
+    const archivedCountRes = await db
+      .select({ count: sql`count(*)` })
+      .from(documents)
+      .where(and(
+        eq(documents.author_id, session.user.id),
+        sql`${documents.is_archived} IS TRUE`,
+        eq(documents.type, 'note')
+      ))
+
+    const starredCountRes = await db
+      .select({ count: sql`count(*)` })
+      .from(documents)
+      .where(and(
+        eq(documents.author_id, session.user.id),
+        sql`${documents.is_starred} IS TRUE`,
+        sql`${documents.is_archived} IS NOT TRUE`,
+        eq(documents.type, 'note')
+      ))
+
+    // Drizzle returns counts as string for some drivers, parse to number safely
+  const notesCount = Number(((notesCountRes[0] as unknown) as { count: string })?.count ?? 0)
+  const archivedCount = Number(((archivedCountRes[0] as unknown) as { count: string })?.count ?? 0)
+  const starredCount = Number(((starredCountRes[0] as unknown) as { count: string })?.count ?? 0)
+
+    return {
+      notesCount,
+      archivedCount,
+      starredCount,
+    }
+  } catch (error) {
+    console.error('Error getting sidebar counts:', error)
+    throw new Error('Failed to get sidebar counts')
+  }
+}
+
+// (removed alias getNotesCounts) API route now calls getSidebarCounts directly

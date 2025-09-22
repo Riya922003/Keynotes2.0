@@ -10,6 +10,7 @@ export default function CreateNoteButton() {
     startTransition(async () => {
       try {
         await createNote()
+  try { (await import('@/lib/notesSync')).emitNotesUpdated() } catch {}
       } catch (error) {
         console.error('Failed to create note:', error)
       }

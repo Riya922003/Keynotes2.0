@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { documents } from "@/lib/db/schema/documents"
-import { eq, desc, asc } from "drizzle-orm"
+import { eq, desc, asc, and, sql } from "drizzle-orm"
 import NotesClientPage from "@/components/notes/NotesClientPage"
 import DatabaseError from "@/components/DatabaseError"
 
@@ -18,11 +18,12 @@ export default async function NotesPage() {
   let error: string | null = null
 
   try {
-    // Fetch all notes for the current user, ordered by position first, then by updated_at
+    // Fetch non-archived notes for the current user, ordered by position first, then by updated_at
+    // Treat NULL is_archived as not archived using SQL IS NOT TRUE to match sidebar counts
     notes = await db
       .select()
       .from(documents)
-      .where(eq(documents.author_id, session.user.id))
+      .where(and(eq(documents.author_id, session.user.id), sql`${documents.is_archived} IS NOT TRUE`))
       .orderBy(asc(documents.position), desc(documents.updated_at))
   } catch (dbError) {
     console.error('Database connection error:', dbError)

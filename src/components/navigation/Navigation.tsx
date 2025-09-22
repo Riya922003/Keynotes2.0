@@ -1,7 +1,9 @@
-'use client'
+ 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { ChevronsLeft, FileText, Share, Settings, Plus, Search, Archive, Star, Users, Wrench } from 'lucide-react'
+import { getSidebarCounts } from '@/app/actions/noteActions'
+import { onNotesUpdated } from '@/lib/notesSync'
+import { ChevronsLeft, FileText, Share, Settings, Search, Archive, Star, Users, Wrench } from 'lucide-react'
 
 interface NavigationProps {
   children: React.ReactNode
@@ -14,6 +16,46 @@ export default function Navigation({ children }: NavigationProps) {
   
   // Check if it's mobile view (you can install a useMediaQuery hook or use this simple version)
   const [isMobile, setIsMobile] = useState(false)
+
+  // Fetch counts from server action
+  const fetchCounts = async () => {
+    try {
+      const res = await getSidebarCounts()
+      if (res) {
+        setNotesCount(res.notesCount ?? 0)
+        setArchivedCount(res.archivedCount ?? 0)
+        setStarredCount(res.starredCount ?? 0)
+      }
+    } catch {
+      // Fail silently - counts are non-critical
+    }
+  }
+
+  useEffect(() => {
+    // Fetch initial counts when component mounts
+    fetchCounts()
+
+    // Setup subscription for real-time updates with debounce (supports cross-tab via BroadcastChannel)
+    let debounceTimeout: number | null = null
+    const handler = () => {
+      if (debounceTimeout) {
+        window.clearTimeout(debounceTimeout)
+      }
+      debounceTimeout = window.setTimeout(() => {
+        fetchCounts()
+        debounceTimeout = null
+      }, 200)
+    }
+
+    const unsubscribe = onNotesUpdated(handler)
+
+    return () => {
+      if (debounceTimeout) {
+        window.clearTimeout(debounceTimeout)
+      }
+      try { unsubscribe() } catch {}
+    }
+  }, [])
 
   useEffect(() => {
     const checkMobile = () => {
@@ -54,11 +96,16 @@ export default function Navigation({ children }: NavigationProps) {
   const isExpanded = !isCollapsed || isHovering
 
   // Sidebar navigation items
+  // counts state for dynamic sidebar
+  const [notesCount, setNotesCount] = useState<number | undefined>(undefined)
+  const [archivedCount, setArchivedCount] = useState<number | undefined>(undefined)
+  const [starredCount, setStarredCount] = useState<number | undefined>(undefined)
+
+  // Sidebar items (labels rendered dynamically with counts)
   const privateItems = [
-    { icon: FileText, label: 'My Notes' },
-    { icon: Star, label: 'Favorites' },
-    { icon: Archive, label: 'Archive' },
-    { icon: Plus, label: 'New Document' },
+    { icon: FileText, label: 'My Notes', count: notesCount },
+    { icon: Star, label: 'Starred', count: starredCount },
+    { icon: Archive, label: 'Archived', count: archivedCount },
   ]
 
   const sharedItems = [
@@ -118,11 +165,18 @@ export default function Navigation({ children }: NavigationProps) {
                   <button
                     key={index}
                     className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-accent transition-colors text-left group"
+                    type="button"
+                    aria-label={item.label}
                   >
                     <IconComponent className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <div className={`transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'} flex-1 min-w-0`}>
                       {isExpanded && (
-                        <span className="text-sm text-foreground truncate block">{item.label}</span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-foreground truncate block">{item.label}</span>
+                          <span className="ml-2 text-xs text-muted-foreground tabular-nums">
+                            {typeof item.count === 'number' ? item.count : '—'}
+                          </span>
+                        </div>
                       )}
                     </div>
                   </button>

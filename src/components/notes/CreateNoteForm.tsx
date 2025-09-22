@@ -126,6 +126,7 @@ export default function CreateNoteForm({ onNoteCreated }: CreateNoteFormProps) {
         // Call the parent callback to update the UI immediately
         if (onNoteCreated && newNote) {
           onNoteCreated(newNote)
+      try { (await import('@/lib/notesSync')).emitNotesUpdated() } catch {}
         }
       } catch (error) {
         console.error('Failed to create note:', error)

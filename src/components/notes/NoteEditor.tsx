@@ -79,9 +79,10 @@ export default function NoteEditor({ note, titleColor, onSaved }: NoteEditorProp
     try {
       // Convert BlockNote content to JSON string for storage
       const contentString = JSON.stringify(editorContent)
-      await updateNote(note.id, noteTitle, contentString)
-      // Notify parent that note was saved so UI can update in real-time
-      onSaved?.({ title: noteTitle, content: contentString })
+    await updateNote(note.id, noteTitle, contentString)
+    // Notify parent that note was saved so UI can update in real-time
+    onSaved?.({ title: noteTitle, content: contentString })
+    try { (await import('@/lib/notesSync')).emitNotesUpdated() } catch {}
     } catch (error) {
       console.error('Failed to save note:', error)
     }

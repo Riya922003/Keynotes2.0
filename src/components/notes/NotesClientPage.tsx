@@ -86,11 +86,16 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
 
   // Function to handle note updates (like pin status changes)
   const handleNoteUpdated = (updatedNoteId: string, updates: Partial<typeof notes[0]>) => {
-    setNotes(prevNotes => 
-      prevNotes.map(note => 
+    setNotes(prevNotes => {
+      // If the update marks the note as archived, remove it from the current list
+      if (updates.is_archived) {
+        return prevNotes.filter(note => note.id !== updatedNoteId)
+      }
+
+      return prevNotes.map(note => 
         note.id === updatedNoteId ? { ...note, ...updates } : note
       )
-    )
+    })
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -127,7 +132,7 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
       try {
         // Update positions in the database
         await updateNoteOrder(notesWithNewPositions)
-      } catch (error) {
+      } catch {
         // Revert on error
         setNotes(notes)
       }

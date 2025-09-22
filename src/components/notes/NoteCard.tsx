@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Pin, GripVertical, Palette, Bell, Archive, MoreHorizontal, Trash2 } from 'lucide-react'
+import { Pin, GripVertical, Palette, Bell, Archive, MoreHorizontal, Trash2, Star } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import NoteEditor from './NoteEditor'
@@ -21,9 +21,10 @@ interface NoteCardProps {
     updated_at: Date
     author_id: string
     workspace_id: string
-    color?: string | null
+    color?: string | null | undefined
     is_pinned?: boolean | null
     is_archived?: boolean | null
+    is_starred?: boolean | null
     reminder_date?: Date | null
     reminder_repeat?: string | null
     position?: number | null
@@ -85,10 +86,12 @@ export default function NoteCard({
         note.id,
         note.title || '',
         typeof note.content === 'string' ? note.content : JSON.stringify(note.content),
-        color || undefined
+        // If user chooses 'Default' (null), send null so DB clears the color
+        color === null ? null : (color || undefined)
       )
       // Call the callback to update parent component's state
       onNoteUpdated?.(note.id, { color })
+  try { import('@/lib/notesSync').then(m => m.emitNotesUpdated()) } catch {}
       setShowColorPicker(false)
     } catch (error) {
       console.error('Failed to change color:', error)
@@ -113,6 +116,7 @@ export default function NoteCard({
       await deleteNote(note.id)
       // Call the callback to update parent component's state
       onNoteDeleted?.(note.id)
+  try { import('@/lib/notesSync').then(m => m.emitNotesUpdated()) } catch {}
     } catch (error) {
       console.error('Failed to delete note:', error)
       setIsDeleting(false)
@@ -131,8 +135,21 @@ export default function NoteCard({
       )
       // Call the callback to update parent component's state
       onNoteUpdated?.(note.id, { is_pinned: newPinStatus })
+  try { import('@/lib/notesSync').then(m => m.emitNotesUpdated()) } catch {}
     } catch (error) {
       console.error('Failed to toggle pin:', error)
+    }
+  }
+
+  const handleToggleStar = async () => {
+    try {
+      // Dynamically import server action to avoid bundling server code
+      const { toggleStarNote } = await import('@/app/actions/noteActions')
+      await toggleStarNote(note.id)
+      onNoteUpdated?.(note.id, { is_starred: !note.is_starred })
+  try { import('@/lib/notesSync').then(m => m.emitNotesUpdated()) } catch {}
+    } catch (err) {
+      console.error('Failed to toggle star:', err)
     }
   }
 
@@ -141,6 +158,7 @@ export default function NoteCard({
       await toggleArchiveNote(note.id)
       // Update the parent component's state
       onNoteUpdated?.(note.id, { is_archived: !note.is_archived })
+  try { import('@/lib/notesSync').then(m => m.emitNotesUpdated()) } catch {}
     } catch (error) {
       console.error('Failed to toggle archive:', error)
     }
@@ -154,6 +172,7 @@ export default function NoteCard({
       await removeNoteReminder(note.id)
       // Update the parent component's state immediately
       onNoteUpdated?.(note.id, { reminder_date: null, reminder_repeat: null })
+  try { import('@/lib/notesSync').then(m => m.emitNotesUpdated()) } catch {}
     } catch (error) {
       console.error('Failed to remove reminder:', error)
     } finally {
@@ -270,6 +289,31 @@ export default function NoteCard({
   const computedTitleColor = note.color && typeof note.color === 'string' && titleColorMap.hasOwnProperty(note.color)
     ? titleColorMap[note.color as keyof typeof titleColorMap]
     : '#374151' // default: gray-700
+
+  // Helper: compute luminance from hex color
+  const hexToLuminance = (hex?: string | null) => {
+    if (!hex) return 1 // treat no color as light by default
+    try {
+      const c = hex.replace('#', '')
+      const r = parseInt(c.substring(0,2),16)/255
+      const g = parseInt(c.substring(2,4),16)/255
+      const b = parseInt(c.substring(4,6),16)/255
+      const srgb = [r,g,b].map((v)=> v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4))
+      const lum = 0.2126*srgb[0] + 0.7152*srgb[1] + 0.0722*srgb[2]
+      return lum
+    } catch {
+      return 1
+    }
+  }
+
+  // Determine icon text color class based on note color
+  const iconTextClass = (() => {
+    // User requested: keep icons white if the card has no color
+    if (!note.color) return 'text-white'
+    const lum = hexToLuminance(note.color as string)
+    // If background is dark (lum < 0.5) use white icons, otherwise use dark icons
+    return lum < 0.5 ? 'text-white' : 'text-muted-foreground'
+  })()
 
   // If editing, render a modal overlay using portal
   if (isEditing && typeof document !== 'undefined') {
@@ -455,6 +499,30 @@ export default function NoteCard({
                   <Archive className={`w-4 h-4 ${note.is_archived ? 'fill-current' : ''}`} />
                 </Button>
                 
+                {/* Star */}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className={`h-8 w-8 p-0 hover:bg-muted/50 rounded-full ${note.is_starred ? 'text-amber-500' : ''}`}
+                  title={note.is_starred ? 'Unstar' : 'Star'}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    // Dynamically import server action to avoid bundling server code
+                    ;(async () => {
+                      try {
+                        const { toggleStarNote } = await import('@/app/actions/noteActions')
+                        await toggleStarNote(note.id)
+                        onNoteUpdated?.(note.id, { is_starred: !note.is_starred })
+                        try { import('@/lib/notesSync').then(m => m.emitNotesUpdated()) } catch {}
+                      } catch (err) {
+                        console.error('Failed to toggle star:', err)
+                      }
+                    })()
+                  }}
+                >
+                  <Star className={`w-4 h-4 ${note.is_starred ? 'fill-current' : ''}`} />
+                </Button>
+                
                 {/* Pin/Unpin */}
                 <Button 
                   variant="ghost" 
@@ -564,7 +632,7 @@ export default function NoteCard({
       )}
 
       {/* Pin indicator and toggle button */}
-      <div className="absolute top-2 right-2 flex items-center gap-1">
+  <div className="absolute top-2 right-2 flex items-center gap-1">
         {/* Reminder indicator - show when reminder is set */}
         {note.reminder_date && (
           <Button
@@ -582,7 +650,7 @@ export default function NoteCard({
           </Button>
         )}
         
-        {note.is_pinned ? (
+  {note.is_pinned ? (
           /* Pinned state - clicking unpins */
           <Button
             variant="ghost"
@@ -598,30 +666,47 @@ export default function NoteCard({
           </Button>
         ) : (
           /* Unpinned state - show pin button on hover */
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 hover:bg-muted/50 rounded-full"
+                className={`h-6 w-6 p-0 hover:bg-muted/50 rounded-full ${note.color ? 'bg-transparent' : ''}`}
               title="Pin note"
               onClick={(e) => {
                 e.stopPropagation()
                 handleTogglePin()
               }}
             >
-              <Pin className="w-3 h-3 text-muted-foreground" />
+                <Pin className={`w-3 h-3 ${iconTextClass}`} />
             </Button>
           </div>
         )}
+        {/* Star toggle on collapsed card */}
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`h-6 w-6 p-0 hover:bg-muted/50 rounded-full ${note.is_starred ? 'text-amber-500' : ''}`}
+            title={note.is_starred ? 'Unstar note' : 'Star note'}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleToggleStar()
+            }}
+          >
+            <Star className={`w-3 h-3 ${note.is_starred ? 'fill-current' : iconTextClass}`} />
+          </Button>
+        </div>
       </div>
 
       {/* Delete button on hover - position dynamically based on other icons */}
       <div className={`absolute top-2 opacity-0 group-hover:opacity-100 transition-opacity ${
-        // Calculate position based on how many icons are present
+        // Calculate position based on how many icons are present (pin + star + reminder)
         (() => {
           let iconCount = 1; // Always have pin icon
           if (note.reminder_date) iconCount++; // Add reminder icon if present
-          return iconCount === 1 ? 'right-8' : iconCount === 2 ? 'right-14' : 'right-20';
+          if (note.is_starred) iconCount++; // Add star icon if present
+          // base offset moves left depending on iconCount
+          return iconCount === 1 ? 'right-10' : iconCount === 2 ? 'right-16' : 'right-22';
         })()
       }`}>
         <Button
@@ -635,7 +720,7 @@ export default function NoteCard({
           }}
           disabled={isDeleting}
         >
-          <Trash2 className="w-3 h-3" />
+          <Trash2 className={`w-3 h-3 ${iconTextClass}`} />
         </Button>
       </div>
       

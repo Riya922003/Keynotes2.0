@@ -4,7 +4,9 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { getRecentNotes } from '@/app/actions/noteActions'
 
-type Note = any
+import type { Document } from '@/lib/db/schema/documents'
+
+type Note = Document
 
 export default function RecentNotes() {
   const [notes, setNotes] = useState<Note[]>([])
@@ -21,7 +23,6 @@ export default function RecentNotes() {
 
   useEffect(() => {
     fetchNotes()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {

@@ -35,13 +35,7 @@ interface NotesClientPageProps {
 // Local note types used across the component
 type Note = NotesClientPageProps['initialNotes'][number]
 type NoteWithMatch = Note & { matchCount?: number }
-type GroupedNotes = {
-  pinned: NoteWithMatch[]
-  matches: NoteWithMatch[]
-  rest: NoteWithMatch[]
-  combined?: NoteWithMatch[]
-  all: NoteWithMatch[]
-}
+// GroupedNotes type intentionally removed; we infer structure from returned object in useMemo
 
 export default function NotesClientPage({ initialNotes }: NotesClientPageProps) {
   // Don't sort initially - maintain original order and handle pinned/unpinned separately

@@ -48,6 +48,14 @@
   font-style: normal !important;
 }
 
+/* Also update placeholder for note editor modal */
+.bn-editor .ProseMirror p.is-empty::before {
+  content: "Start typing..." !important;
+  color: #6b7280 !important;
+  pointer-events: none !important;
+  font-style: normal !important;
+}
+
 /* Remove any white backgrounds from nested elements */
 .create-note-editor * {
   background-color: transparent !important;
@@ -88,4 +96,27 @@
 .note-card-container {
   position: relative !important;
   overflow: visible !important;
+}
+
+/* Improve text contrast on colored note backgrounds */
+.bn-editor .ProseMirror {
+  color: #1f2937 !important; /* Dark gray text */
+}
+
+.bn-editor .ProseMirror p {
+  color: #1f2937 !important;
+}
+
+.bn-editor .ProseMirror h1,
+.bn-editor .ProseMirror h2,
+.bn-editor .ProseMirror h3,
+.bn-editor .ProseMirror h4,
+.bn-editor .ProseMirror h5,
+.bn-editor .ProseMirror h6 {
+  color: #111827 !important; /* Even darker for headings */
+}
+
+/* Ensure placeholder text is visible on colored backgrounds */
+.bn-editor .ProseMirror p.is-empty::before {
+  color: #6b7280 !important; /* Medium gray for placeholder */
 }

@@ -58,14 +58,14 @@ export default function NoteCard({
   
   // Predefined colors for notes
   const noteColors = [
-    { name: 'Default', value: null, bg: 'bg-background' },
-    { name: 'Red', value: '#fef2f2', bg: 'bg-red-50' },
-    { name: 'Orange', value: '#fff7ed', bg: 'bg-orange-50' },
-    { name: 'Yellow', value: '#fefce8', bg: 'bg-yellow-50' },
-    { name: 'Green', value: '#f0fdf4', bg: 'bg-green-50' },
-    { name: 'Blue', value: '#eff6ff', bg: 'bg-blue-50' },
-    { name: 'Purple', value: '#faf5ff', bg: 'bg-purple-50' },
-    { name: 'Pink', value: '#fdf2f8', bg: 'bg-pink-50' },
+    { name: 'Default', value: null, bg: 'bg-background', border: 'border-gray-300' },
+    { name: 'Red', value: '#fef2f2', bg: 'bg-red-50', border: 'border-red-200' },
+    { name: 'Orange', value: '#fff7ed', bg: 'bg-orange-50', border: 'border-orange-200' },
+    { name: 'Yellow', value: '#fefce8', bg: 'bg-yellow-50', border: 'border-yellow-200' },
+    { name: 'Green', value: '#f0fdf4', bg: 'bg-green-50', border: 'border-green-200' },
+    { name: 'Blue', value: '#eff6ff', bg: 'bg-blue-50', border: 'border-blue-200' },
+    { name: 'Purple', value: '#faf5ff', bg: 'bg-purple-50', border: 'border-purple-200' },
+    { name: 'Pink', value: '#fdf2f8', bg: 'bg-pink-50', border: 'border-pink-200' },
   ]
 
   const handleColorChange = async (color: string | null) => {
@@ -346,13 +346,22 @@ export default function NoteCard({
                         {noteColors.map((color) => (
                           <button
                             key={color.name}
-                            className={`w-6 h-6 rounded-full border-2 hover:border-gray-400 ${
-                              color.value ? '' : 'border-gray-300'
+                            className={`w-6 h-6 rounded-full border-2 hover:border-gray-600 transition-colors relative ${
+                              color.value ? 'border-gray-400' : 'border-gray-400'
+                            } ${
+                              note.color === color.value ? 'ring-2 ring-blue-500 ring-offset-1' : ''
                             }`}
                             style={{ backgroundColor: color.value || '#ffffff' }}
                             onClick={() => handleColorChange(color.value)}
                             title={color.name}
-                          />
+                          >
+                            {/* Add a subtle shadow or checkmark for selected color */}
+                            {note.color === color.value && (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="w-2 h-2 bg-gray-700 rounded-full"></div>
+                              </div>
+                            )}
+                          </button>
                         ))}
                       </div>
                     </div>

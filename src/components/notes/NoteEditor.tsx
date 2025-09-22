@@ -6,6 +6,7 @@ import { useCreateBlockNote } from '@blocknote/react'
 import { BlockNoteView } from '@blocknote/mantine'
 import '@blocknote/core/fonts/inter.css'
 import '@blocknote/mantine/style.css'
+import '@/styles/blocknote-custom.css'
 import { updateNote } from '@/app/actions/noteActions'
 import { Input } from '@/components/ui/input'
 
@@ -48,6 +49,7 @@ export default function NoteEditor({ note }: NoteEditorProps) {
   // Initialize BlockNote editor
   const editor = useCreateBlockNote({
     initialContent: getInitialContent(),
+    placeholderText: "Start typing...",
   })
 
   // Debounce the title to avoid excessive API calls

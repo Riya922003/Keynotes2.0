@@ -50,7 +50,7 @@
 
 /* Also update placeholder for note editor modal */
 .bn-editor .ProseMirror p.is-empty::before {
-  content: "Start typing..." !important;
+  content: "Type your note" !important;
   color: #6b7280 !important;
   pointer-events: none !important;
   font-style: normal !important;

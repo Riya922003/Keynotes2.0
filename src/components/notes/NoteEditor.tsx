@@ -21,9 +21,11 @@ interface NoteEditorProps {
     author_id: string
     workspace_id: string
   }
+  titleColor?: string
+  onSaved?: (updates: { title?: string; content?: string }) => void
 }
 
-export default function NoteEditor({ note }: NoteEditorProps) {
+export default function NoteEditor({ note, titleColor, onSaved }: NoteEditorProps) {
   // Initialize state with note data
   const [title, setTitle] = useState(note.title || '')
 
@@ -49,7 +51,7 @@ export default function NoteEditor({ note }: NoteEditorProps) {
   // Initialize BlockNote editor
   const editor = useCreateBlockNote({
     initialContent: getInitialContent(),
-    placeholderText: "Start typing...",
+    placeholderText: "Type your note",
   })
 
   // Debounce the title to avoid excessive API calls
@@ -78,10 +80,12 @@ export default function NoteEditor({ note }: NoteEditorProps) {
       // Convert BlockNote content to JSON string for storage
       const contentString = JSON.stringify(editorContent)
       await updateNote(note.id, noteTitle, contentString)
+      // Notify parent that note was saved so UI can update in real-time
+      onSaved?.({ title: noteTitle, content: contentString })
     } catch (error) {
       console.error('Failed to save note:', error)
     }
-  }, [note.id, note.title, note.content])
+  }, [note.id, note.title, note.content, onSaved])
 
   // Effect to trigger auto-save when title changes
   useEffect(() => {
@@ -119,7 +123,7 @@ export default function NoteEditor({ note }: NoteEditorProps) {
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Take a note..."
           className="text-lg font-semibold border-none shadow-none focus-visible:ring-0 px-0 bg-transparent placeholder:text-muted-foreground/60 resize-none"
-          style={{ fontSize: '1.125rem', fontWeight: '600' }}
+          style={{ fontSize: '1.125rem', fontWeight: '600', color: titleColor || undefined }}
         />
       </div>
 

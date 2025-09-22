@@ -56,17 +56,28 @@ export default function NoteCard({
   const [isDeleting, setIsDeleting] = useState(false)
   const [isRemovingReminder, setIsRemovingReminder] = useState(false)
   
-  // Predefined colors for notes
+  // Predefined colors for notes - using darker, more vibrant colors for better text visibility
   const noteColors = [
     { name: 'Default', value: null, bg: 'bg-background', border: 'border-gray-300' },
-    { name: 'Red', value: '#fef2f2', bg: 'bg-red-50', border: 'border-red-200' },
-    { name: 'Orange', value: '#fff7ed', bg: 'bg-orange-50', border: 'border-orange-200' },
-    { name: 'Yellow', value: '#fefce8', bg: 'bg-yellow-50', border: 'border-yellow-200' },
-    { name: 'Green', value: '#f0fdf4', bg: 'bg-green-50', border: 'border-green-200' },
-    { name: 'Blue', value: '#eff6ff', bg: 'bg-blue-50', border: 'border-blue-200' },
-    { name: 'Purple', value: '#faf5ff', bg: 'bg-purple-50', border: 'border-purple-200' },
-    { name: 'Pink', value: '#fdf2f8', bg: 'bg-pink-50', border: 'border-pink-200' },
-  ]
+    { name: 'Red', value: '#fee2e2', bg: 'bg-red-100', border: 'border-red-300' },
+    { name: 'Orange', value: '#fed7aa', bg: 'bg-orange-100', border: 'border-orange-300' },
+    { name: 'Yellow', value: '#fef3c7', bg: 'bg-yellow-100', border: 'border-yellow-300' },
+    { name: 'Green', value: '#dcfce7', bg: 'bg-green-100', border: 'border-green-300' },
+    { name: 'Blue', value: '#dbeafe', bg: 'bg-blue-100', border: 'border-blue-300' },
+    { name: 'Purple', value: '#e9d5ff', bg: 'bg-purple-100', border: 'border-purple-300' },
+    { name: 'Pink', value: '#fce7f3', bg: 'bg-pink-100', border: 'border-pink-300' },
+  ];
+
+  // Map note color to a readable dark color for the title
+  const titleColorMap = {
+    '#fee2e2': '#b91c1c', // Red
+    '#fed7aa': '#c2410c', // Orange
+    '#fef3c7': '#a16207', // Yellow
+    '#dcfce7': '#166534', // Green
+    '#dbeafe': '#1e40af', // Blue
+    '#e9d5ff': '#7c3aed', // Purple
+    '#fce7f3': '#be185d', // Pink
+  };
 
   const handleColorChange = async (color: string | null) => {
     try {
@@ -128,7 +139,7 @@ export default function NoteCard({
   const handleToggleArchive = async () => {
     try {
       await toggleArchiveNote(note.id)
-      // Call the callback to update parent component's state
+      // Update the parent component's state
       onNoteUpdated?.(note.id, { is_archived: !note.is_archived })
     } catch (error) {
       console.error('Failed to toggle archive:', error)
@@ -255,6 +266,11 @@ export default function NoteCard({
     opacity: isDragging ? 0.5 : 1,
   }
 
+  // Compute readable title color based on note color
+  const computedTitleColor = note.color && typeof note.color === 'string' && titleColorMap.hasOwnProperty(note.color)
+    ? titleColorMap[note.color as keyof typeof titleColorMap]
+    : '#374151' // default: gray-700
+
   // If editing, render a modal overlay using portal
   if (isEditing && typeof document !== 'undefined') {
     return createPortal(
@@ -298,6 +314,7 @@ export default function NoteCard({
                   onToggleEdit(null)
                 }}
                 className="h-8 w-8 p-0 hover:bg-muted/50 rounded-full"
+                style={{ color: computedTitleColor }}
               >
                 ×
               </Button>
@@ -308,7 +325,19 @@ export default function NoteCard({
               className="p-4 max-h-[calc(80vh-100px)] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <NoteEditor note={note} />
+              <NoteEditor
+                note={note}
+                titleColor={computedTitleColor}
+                onSaved={(updates) => {
+                  // Update parent immediately so UI reflects changes in real-time
+                  if (updates.title !== undefined) {
+                    onNoteUpdated?.(note.id, { title: updates.title })
+                  }
+                  if (updates.content !== undefined) {
+                    onNoteUpdated?.(note.id, { content: updates.content })
+                  }
+                }}
+              />
             </div>
 
             {/* Note actions/features bar at bottom */}
@@ -492,8 +521,11 @@ export default function NoteCard({
           )}
           
           {/* Main Content */}
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold line-clamp-2">
+            <CardHeader className="pb-3">
+            <CardTitle 
+              className="text-lg font-semibold line-clamp-2"
+              style={{ color: computedTitleColor }}
+            >
               {note.title || 'Untitled'}
             </CardTitle>
             <CardDescription className="text-sm text-muted-foreground line-clamp-3">
@@ -608,8 +640,8 @@ export default function NoteCard({
       </div>
       
       {/* Main Content */}
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg font-semibold line-clamp-2">
+        <CardHeader className="pb-3">
+        <CardTitle className="text-lg font-semibold line-clamp-2" style={{ color: computedTitleColor }}>
           {note.title || 'Untitled'}
         </CardTitle>
         <CardDescription className="text-sm text-muted-foreground line-clamp-3">

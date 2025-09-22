@@ -31,7 +31,7 @@ export default function SearchBar({ className, value, onChange, ...props }: Prop
 
   const updateQuery = React.useCallback(
     (q: string) => {
-      const params = new URLSearchParams(Array.from(searchParams || [] as any))
+      const params = new URLSearchParams(searchParams?.toString() || '')
       if (q) {
         params.set("q", q)
       } else {

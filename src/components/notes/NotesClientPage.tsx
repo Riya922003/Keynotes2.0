@@ -6,13 +6,10 @@ import { DndContext, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable'
 import { useRouter } from 'next/navigation'
 import { matchSorter } from 'match-sorter'
-import { motion } from 'framer-motion'
-import { Pin } from 'lucide-react'
 import Navigation from '@/components/navigation/Navigation'
 import NoteCard from '@/components/notes/NoteCard'
 import CreateNoteForm from '@/components/notes/CreateNoteForm'
 import { ThemeToggleButton } from '@/components/ThemeToggleButton'
-import SearchBar from '@/components/search/SearchBar'
 import { updateNoteOrder } from '@/app/actions/noteActions'
 // Note: drag-and-drop ordering has been removed from this component so sorting/searching can be handled client-side
 
@@ -35,20 +32,27 @@ interface NotesClientPageProps {
   }>
 }
 
+// Local note types used across the component
+type Note = NotesClientPageProps['initialNotes'][number]
+type NoteWithMatch = Note & { matchCount?: number }
+type GroupedNotes = {
+  pinned: NoteWithMatch[]
+  matches: NoteWithMatch[]
+  rest: NoteWithMatch[]
+  combined?: NoteWithMatch[]
+  all: NoteWithMatch[]
+}
+
 export default function NotesClientPage({ initialNotes }: NotesClientPageProps) {
   // Don't sort initially - maintain original order and handle pinned/unpinned separately
   const [notes, setNotes] = useState(initialNotes)
   const [searchQuery, setSearchQuery] = useState('')
-  const [mounted, setMounted] = useState(false)
+  // mounted state not used; removed to satisfy lint
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [autoFocusNoteId, setAutoFocusNoteId] = useState<string | null>(null)
   const notesContainerRef = useRef<HTMLDivElement>(null)
 
   // (no-op) keep mount logic earlier; skip debug warnings in production
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   // Ensure client state is populated from server props on mount in case of hydration mismatch
   useEffect(() => {
@@ -100,7 +104,7 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
 
     // Remove q param from URL (keep other params)
     try {
-      const params = new URLSearchParams(Array.from(searchParams || [] as any))
+      const params = new URLSearchParams(searchParams?.toString() || '')
       params.delete('q')
       const url = `${typeof window !== 'undefined' ? window.location.pathname : '/notes'}?${params.toString()}`
       router.replace(url)
@@ -163,7 +167,7 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
 
   // Sync searchQuery to URL q param whenever it changes (replace so history isn't cluttered)
   useEffect(() => {
-    const params = new URLSearchParams(Array.from(searchParams || [] as any))
+    const params = new URLSearchParams(searchParams?.toString() || '')
     if (searchQuery) params.set('q', searchQuery)
     else params.delete('q')
     const url = `${typeof window !== 'undefined' ? window.location.pathname : '/notes'}?${params.toString()}`
@@ -172,6 +176,10 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
 
   const grouped = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
+
+    // Local note type
+    type Note = NotesClientPageProps['initialNotes'][number]
+    type NoteWithMatch = Note & { matchCount?: number }
 
     // Helper to extract searchable text from content
     const extractText = (content: unknown) => {
@@ -182,10 +190,11 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
             const parsed = JSON.parse(content)
             if (Array.isArray(parsed)) {
               return parsed
-                .map((block: any) => {
-                  if (!block.content) return ''
-                  if (typeof block.content === 'string') return block.content
-                  if (Array.isArray(block.content)) return block.content.map((c: any) => c.text || '').join('')
+                .map((block: unknown) => {
+                  const b = block as { content?: unknown }
+                  if (!b.content) return ''
+                  if (typeof b.content === 'string') return b.content
+                  if (Array.isArray(b.content)) return (b.content as Array<{ text?: string }>).map((c) => (c && typeof c.text === 'string' ? c.text : '')).join('')
                   return ''
                 })
                 .join(' ')
@@ -196,10 +205,11 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
         }
         if (Array.isArray(content)) {
           return content
-            .map((block: any) => {
-              if (!block.content) return ''
-              if (typeof block.content === 'string') return block.content
-              if (Array.isArray(block.content)) return block.content.map((c: any) => c.text || '').join('')
+            .map((block: unknown) => {
+              const b = block as { content?: unknown }
+              if (!b.content) return ''
+              if (typeof b.content === 'string') return b.content
+              if (Array.isArray(b.content)) return (b.content as Array<{ text?: string }>).map((c) => (c && typeof c.text === 'string' ? c.text : '')).join('')
               return ''
             })
             .join(' ')
@@ -211,9 +221,9 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
     }
 
     // Partition notes into pinned, matches, and rest maintaining relative order within groups
-    const pinned: typeof notes = [] as any
-    const matches: typeof notes = [] as any
-    const rest: typeof notes = [] as any
+  const pinned: NoteWithMatch[] = []
+  const matches: NoteWithMatch[] = []
+  const rest: NoteWithMatch[] = []
 
     // Separate pinned and unpinned first
     const unpinned = notes.filter(n => !n.is_pinned)
@@ -228,9 +238,9 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
     }
 
     // Use matchSorter to rank all notes fuzzily
-    const rankedAll = matchSorter(notes as any, query, {
-      keys: ['title', (item: any) => extractText(item.content)],
-    }) as typeof notes
+    const rankedAll = matchSorter<Note>(notes as Note[], query, {
+      keys: ['title', (item: Note) => extractText(item.content)],
+    }) as Note[]
 
     // Build rank index map so earlier items have higher contribution
     const rankIndex = new Map<string, number>()
@@ -252,7 +262,7 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
           idx = lower.indexOf(tn, idx + tn.length)
         }
       }
-      matchCountMap.set(n.id, count)
+  matchCountMap.set(n.id, count)
       const idx = rankIndex.has(n.id) ? rankIndex.get(n.id)! : rankedAll.length
       // higher fuzzy score for earlier rank (invert index)
       fuzzyScoreMap.set(n.id, Math.max(0, rankedAll.length - idx))
@@ -262,26 +272,26 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
     const PIN_WEIGHT = 200
     const TITLE_BONUS = 50
 
-    const combined = notes.slice().map(n => {
+    // Build combined ranking using notes with matchCount attached
+    const combined = notes.map(n => {
       const fuzzy = fuzzyScoreMap.get(n.id) ?? 0
       const count = matchCountMap.get(n.id) ?? 0
+      const noteWithMatch: NoteWithMatch = { ...(n as Note), matchCount: count }
       const title = (n.title || '').toLowerCase()
       const isTitleMatch = terms.some(t => title.includes(t)) ? TITLE_BONUS : 0
       const pin = n.is_pinned ? PIN_WEIGHT : 0
       const score = pin + fuzzy + isTitleMatch + count
-      return { note: n, score }
+      return { note: noteWithMatch, score }
     }).sort((a, b) => b.score - a.score)
 
     // Build ordered arrays
     const combinedNotes = combined.map(c => c.note)
     // split combinedNotes into matches (count>0) and rest
     for (const n of combinedNotes) {
-      if ((matchCountMap.get(n.id) ?? 0) > 0) matches.push(n)
-      else rest.push(n)
+      const note = n as NoteWithMatch
+      if ((note.matchCount ?? 0) > 0) matches.push(note)
+      else rest.push(note)
     }
-
-    // Attach matchCount for rendering
-    for (const n of notes) (n as any).matchCount = matchCountMap.get(n.id) ?? 0
 
     return { pinned, matches, rest, combined: combinedNotes, all: combinedNotes }
   }, [notes, searchQuery])
@@ -313,7 +323,7 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
 
     try {
       await updateNoteOrder(notesWithNewPositions)
-    } catch (err) {
+    } catch {
       // Revert on error
       setNotes(notes)
     }
@@ -365,7 +375,7 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
                                   onNoteDeleted={handleNoteDeleted}
                                   onNoteUpdated={handleNoteUpdated}
                                   highlight={searchQuery}
-                                  matchCount={(n as any).matchCount}
+                                  matchCount={n.matchCount}
                                   autoFocus={autoFocusNoteId === n.id}
                                 />
                               </div>
@@ -391,7 +401,7 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
                                     onNoteDeleted={handleNoteDeleted}
                                     onNoteUpdated={handleNoteUpdated}
                                     highlight={searchQuery}
-                                    matchCount={(n as any).matchCount}
+                                    matchCount={n.matchCount}
                                     autoFocus={autoFocusNoteId === n.id}
                                   />
                                 </div>

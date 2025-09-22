@@ -606,8 +606,8 @@ export default function NoteCard({
             >
                   {highlight ? highlightText(note.title || 'Untitled', highlight) : (note.title || 'Untitled')}
                 </CardTitle>
-                {typeof (note as any).matchCount === 'number' && (
-                  <div className="ml-2 text-xs text-muted-foreground">{(note as any).matchCount}</div>
+                {typeof (note as unknown as { matchCount?: number }).matchCount === 'number' && (
+                  <div className="ml-2 text-xs text-muted-foreground">{(note as unknown as { matchCount?: number }).matchCount}</div>
                 )}
               </div>
               <CardDescription className="text-sm text-muted-foreground line-clamp-3">

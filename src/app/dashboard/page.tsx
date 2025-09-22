@@ -5,6 +5,7 @@ import HelpFAB from "@/components/HelpFAB"
 import { ThemeToggleButton } from "@/components/ThemeToggleButton"
 import { DashboardUserNav } from "@/components/DashboardUserNav"
 import Link from "next/link"
+import RecentNotes from '@/components/dashboard/RecentNotes'
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
@@ -39,21 +40,7 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Recent Notes Card */}
           <div className="bg-card border border-border rounded-lg p-6">
-            <h3 className="text-lg font-semibold mb-4">Recent Notes</h3>
-            <div className="space-y-3">
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm font-medium">Project Ideas</p>
-                <p className="text-xs text-muted-foreground">2 hours ago</p>
-              </div>
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm font-medium">Meeting Notes</p>
-                <p className="text-xs text-muted-foreground">Yesterday</p>
-              </div>
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm font-medium">Daily Journal</p>
-                <p className="text-xs text-muted-foreground">3 days ago</p>
-              </div>
-            </div>
+            <RecentNotes />
           </div>
 
           {/* Quick Actions Card */}

@@ -1,6 +1,6 @@
  'use server'
 
-import { eq, and, sql } from 'drizzle-orm'
+import { eq, and, sql, desc } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { documents } from '@/lib/db/schema/documents'
 import { workspaces } from '@/lib/db/schema/workspaces'
@@ -567,3 +567,26 @@ export async function getSidebarCounts() {
 }
 
 // (removed alias getNotesCounts) API route now calls getSidebarCounts directly
+
+// Get the 3 most recently updated notes for the current user
+export async function getRecentNotes() {
+  const session = await getServerSession(authOptions)
+
+  if (!session?.user?.id) {
+    throw new Error('Authentication required')
+  }
+
+  try {
+    const recentNotes = await db
+      .select()
+      .from(documents)
+      .where(and(eq(documents.author_id, session.user.id), eq(documents.type, 'note')))
+      .orderBy(desc(documents.updated_at))
+      .limit(3)
+
+    return recentNotes
+  } catch (error) {
+    console.error('Error fetching recent notes:', error)
+    throw new Error('Failed to fetch recent notes')
+  }
+}

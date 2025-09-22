@@ -3,8 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { getSidebarCounts } from '@/app/actions/noteActions'
 import { onNotesUpdated } from '@/lib/notesSync'
-import { ChevronsLeft, FileText, Share, Settings, Search, Archive, Star, Users, Wrench } from 'lucide-react'
-import SearchBar from '@/components/search/SearchBar'
+import { ChevronsLeft, FileText, Share, Settings, Archive, Star, Users, Wrench } from 'lucide-react'
 
 interface NavigationProps {
   children: React.ReactNode
@@ -116,7 +115,6 @@ export default function Navigation({ children }: NavigationProps) {
   ]
 
   const toolItems = [
-    { icon: Search, label: 'Search' },
     { icon: Settings, label: 'Settings' },
     { icon: Wrench, label: 'Integrations' },
   ]
@@ -150,14 +148,7 @@ export default function Navigation({ children }: NavigationProps) {
 
         {/* Navigation Content */}
         <div className="flex-1 overflow-y-auto p-2 space-y-6">
-          {/* Search */}
-          <div className={`px-2 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
-            {isExpanded && (
-              <div className="mb-2">
-                <SearchBar />
-              </div>
-            )}
-          </div>
+          {/* Search removed from tools */}
           {/* Private Section */}
           <div>
             <div className={`px-2 mb-3 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>

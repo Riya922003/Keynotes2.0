@@ -388,7 +388,7 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
                     // Not searching: show pinned then other notes
                     <div>
                       {grouped.pinned.length > 0 && (
-                        <section>
+                        <section className="mb-6">
                           <h3 className="px-2 text-xs text-muted-foreground">Pinned</h3>
                           <SortableContext items={grouped.pinned.map(n => n.id)} strategy={rectSortingStrategy}>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">

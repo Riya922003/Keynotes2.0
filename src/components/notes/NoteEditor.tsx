@@ -23,9 +23,10 @@ interface NoteEditorProps {
   }
   titleColor?: string
   onSaved?: (updates: { title?: string; content?: string }) => void
+  autoFocus?: boolean
 }
 
-export default function NoteEditor({ note, titleColor, onSaved }: NoteEditorProps) {
+export default function NoteEditor({ note, titleColor, onSaved, autoFocus }: NoteEditorProps) {
   // Initialize state with note data
   const [title, setTitle] = useState(note.title || '')
 
@@ -125,6 +126,7 @@ export default function NoteEditor({ note, titleColor, onSaved }: NoteEditorProp
           placeholder="Take a note..."
           className="text-lg font-semibold border-none shadow-none focus-visible:ring-0 px-0 bg-transparent placeholder:text-muted-foreground/60 resize-none"
           style={{ fontSize: '1.125rem', fontWeight: '600', color: titleColor || undefined }}
+          autoFocus={autoFocus}
         />
       </div>
 

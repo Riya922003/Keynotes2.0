@@ -33,6 +33,12 @@ interface NoteCardProps {
   onToggleEdit: (noteId: string | null) => void
   onNoteDeleted?: (noteId: string) => void
   onNoteUpdated?: (noteId: string, updates: Partial<NoteCardProps['note']>) => void
+  // Optional highlight string to highlight matches in title/content
+  highlight?: string
+  // Optional number of matches found in this note
+  matchCount?: number
+  // Whether the editor should autofocus when opened
+  autoFocus?: boolean
 }
 
 interface BlockContent {
@@ -50,7 +56,9 @@ export default function NoteCard({
   isEditing, 
   onToggleEdit, 
   onNoteDeleted, 
-  onNoteUpdated 
+  onNoteUpdated,
+  highlight,
+  autoFocus = false,
 }: NoteCardProps) {
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [showReminderPicker, setShowReminderPicker] = useState(false)
@@ -372,6 +380,7 @@ export default function NoteCard({
               <NoteEditor
                 note={note}
                 titleColor={computedTitleColor}
+                  autoFocus={autoFocus}
                 onSaved={(updates) => {
                   // Update parent immediately so UI reflects changes in real-time
                   if (updates.title !== undefined) {
@@ -590,15 +599,20 @@ export default function NoteCard({
           
           {/* Main Content */}
             <CardHeader className="pb-3">
-            <CardTitle 
+              <div className="flex items-start justify-between">
+                <CardTitle 
               className="text-lg font-semibold line-clamp-2"
               style={{ color: computedTitleColor }}
             >
-              {note.title || 'Untitled'}
-            </CardTitle>
-            <CardDescription className="text-sm text-muted-foreground line-clamp-3">
-              {getContentPreview()}
-            </CardDescription>
+                  {highlight ? highlightText(note.title || 'Untitled', highlight) : (note.title || 'Untitled')}
+                </CardTitle>
+                {typeof (note as any).matchCount === 'number' && (
+                  <div className="ml-2 text-xs text-muted-foreground">{(note as any).matchCount}</div>
+                )}
+              </div>
+              <CardDescription className="text-sm text-muted-foreground line-clamp-3">
+                {highlight ? highlightText(getContentPreview(), highlight) : getContentPreview()}
+              </CardDescription>
           </CardHeader>
         </Card>
       </>,
@@ -696,41 +710,32 @@ export default function NoteCard({
             <Star className={`w-3 h-3 ${note.is_starred ? 'fill-current' : iconTextClass}`} />
           </Button>
         </div>
-      </div>
 
-      {/* Delete button on hover - position dynamically based on other icons */}
-      <div className={`absolute top-2 opacity-0 group-hover:opacity-100 transition-opacity ${
-        // Calculate position based on how many icons are present (pin + star + reminder)
-        (() => {
-          let iconCount = 1; // Always have pin icon
-          if (note.reminder_date) iconCount++; // Add reminder icon if present
-          if (note.is_starred) iconCount++; // Add star icon if present
-          // base offset moves left depending on iconCount
-          return iconCount === 1 ? 'right-10' : iconCount === 2 ? 'right-16' : 'right-22';
-        })()
-      }`}>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={`h-6 w-6 p-0 hover:bg-red-100 rounded-full transition-colors ${isDeleting ? 'text-red-600 bg-red-100' : 'hover:text-red-600'}`}
-          title="Delete note"
-          onClick={(e) => {
-            e.stopPropagation()
-            handleDeleteNote()
-          }}
-          disabled={isDeleting}
-        >
-          <Trash2 className={`w-3 h-3 ${iconTextClass}`} />
-        </Button>
+        {/* Delete toggle on collapsed card (moved into the same flex container so spacing is consistent) */}
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`h-6 w-6 p-0 hover:bg-red-100 rounded-full transition-colors ${isDeleting ? 'text-red-600 bg-red-100' : 'hover:text-red-600'}`}
+            title="Delete note"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleDeleteNote()
+            }}
+            disabled={isDeleting}
+          >
+            <Trash2 className={`w-3 h-3 ${iconTextClass}`} />
+          </Button>
+        </div>
       </div>
       
       {/* Main Content */}
         <CardHeader className="pb-3">
         <CardTitle className="text-lg font-semibold line-clamp-2" style={{ color: computedTitleColor }}>
-          {note.title || 'Untitled'}
+          {highlight ? highlightText(note.title || 'Untitled', highlight) : (note.title || 'Untitled')}
         </CardTitle>
         <CardDescription className="text-sm text-muted-foreground line-clamp-3">
-          {getContentPreview()}
+          {highlight ? highlightText(getContentPreview(), highlight) : getContentPreview()}
         </CardDescription>
         {/* Reminder info */}
         {note.reminder_date && (
@@ -756,4 +761,28 @@ export default function NoteCard({
       </CardHeader>
     </Card>
   )
+}
+
+// Highlight helper: returns React nodes with matched query wrapped
+function highlightText(text: string, query?: string) {
+  if (!query) return text
+  const q = query.trim()
+  if (!q) return text
+  const lower = text.toLowerCase()
+  const qlower = q.toLowerCase()
+  const parts: React.ReactNode[] = []
+  let start = 0
+  let idx = lower.indexOf(qlower, start)
+  while (idx !== -1) {
+    if (idx > start) parts.push(text.slice(start, idx))
+    parts.push(
+      <mark key={start} className="bg-yellow-200 rounded px-0.5">
+        {text.slice(idx, idx + q.length)}
+      </mark>
+    )
+    start = idx + q.length
+    idx = lower.indexOf(qlower, start)
+  }
+  if (start < text.length) parts.push(text.slice(start))
+  return parts
 }

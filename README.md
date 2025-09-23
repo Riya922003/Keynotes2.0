@@ -51,7 +51,7 @@ This project uses a carefully selected, modern tech stack designed for performan
 
 The database is designed to be relational and scalable, cleanly separating user data, content, and collaboration permissions.
 
-*(You can replace the placeholder below with a screenshot of the Miro diagram you created)*
+![Alt text](databse.jpeg)
 
 - **users**: Stores user authentication and profile information.
 - **workspaces**: Allows for high-level organization (though the current focus is on per-note collaboration).

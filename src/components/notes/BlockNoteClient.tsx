@@ -24,9 +24,10 @@ interface NoteEditorProps {
   titleColor?: string
   onSaved?: (updates: { title?: string; content?: string }) => void
   autoFocus?: boolean
+  onEditorReady?: () => void
 }
 
-export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus }: NoteEditorProps) {
+export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus, onEditorReady }: NoteEditorProps) {
   const [title, setTitle] = useState(note.title || '')
 
   const getInitialContent = () => {
@@ -48,6 +49,31 @@ export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus }
     initialContent: getInitialContent(),
     placeholderText: "Type your note",
   })
+
+  // Notify parent when the editor instance is ready
+  useEffect(() => {
+    if (!editor) return
+
+    const calledRef = { current: false }
+    let rafId: number | undefined
+
+    const callReady = () => {
+      if (calledRef.current) return
+      calledRef.current = true
+      try { onEditorReady?.() } catch {}
+    }
+
+    // Defer signaling readiness until after the next paint so the editor DOM has a chance to mount
+    if (typeof window !== 'undefined') {
+      rafId = window.requestAnimationFrame(callReady)
+    } else {
+      callReady()
+    }
+
+    return () => {
+      if (rafId !== undefined && typeof window !== 'undefined') window.cancelAnimationFrame(rafId)
+    }
+  }, [editor, onEditorReady])
 
   const [debouncedTitle] = useDebounce(title, 1000)
 

@@ -19,6 +19,7 @@ interface NoteEditorProps {
   titleColor?: string
   onSaved?: (updates: { title?: string; content?: string }) => void
   autoFocus?: boolean
+  onEditorReady?: () => void
 }
 
 export default function NoteEditor(props: NoteEditorProps) {

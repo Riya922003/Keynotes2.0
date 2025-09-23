@@ -1,6 +1,6 @@
  'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import ShareDialog from '@/components/collaboration/ShareDialog'
 import { useRouter } from 'next/navigation'
 import { Pin, Archive, Palette, Star, Share } from 'lucide-react'
@@ -36,10 +36,27 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
   // Local optimistic copy of note for UI updates
   const [localNote, setLocalNote] = useState<NoteEditorModalProps['note'] | null>(note)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+  const [isEditorReady, setIsEditorReady] = useState(false)
+  const readyTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     setLocalNote(note)
   }, [note])
+
+  useEffect(() => {
+    // Reset editor-ready state when a new note is loaded (avoid toolbar flashing)
+    setIsEditorReady(false)
+  }, [note])
+
+  useEffect(() => {
+    return () => {
+      // clear any pending ready timers on unmount
+      if (readyTimerRef.current) {
+        clearTimeout(readyTimerRef.current)
+        readyTimerRef.current = null
+      }
+    }
+  }, [])
 
   const handleTogglePin = async () => {
     if (!note) return
@@ -152,11 +169,24 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
         
         {/* Note Editor */}
         <div className="flex-1 overflow-hidden">
-          {note && <NoteEditor note={note} />}
+          {note && (
+            <NoteEditor
+              note={note}
+              onEditorReady={() => {
+                // small safety delay so the editor DOM can finish mounting and paint
+                if (readyTimerRef.current) clearTimeout(readyTimerRef.current)
+                readyTimerRef.current = window.setTimeout(() => {
+                  setIsEditorReady(true)
+                  readyTimerRef.current = null
+                }, 200)
+              }}
+            />
+          )}
         </div>
         
-        {/* Toolbar */}
-        <div className="flex items-center gap-1 p-4 border-t">
+        {/* Toolbar (only render after editor ready to avoid visual glitch). Show a skeleton placeholder while loading to keep layout stable. */}
+        {isEditorReady ? (
+          <div className="flex items-center gap-1 p-4 border-t">
           {/* Pin Button */}
           <Button
             variant="ghost"
@@ -205,7 +235,17 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
           >
             <Star className={`w-4 h-4 ${localNote?.is_starred ? 'text-foreground' : modalIconClass}`} />
           </Button>
-        </div>
+          </div>
+        ) : (
+          note ? (
+            <div className="flex items-center gap-1 p-4 border-t">
+              <div className="w-8 h-8 rounded bg-muted" />
+              <div className="w-8 h-8 rounded bg-muted" />
+              <div className="w-8 h-8 rounded bg-muted" />
+              <div className="w-8 h-8 rounded bg-muted" />
+            </div>
+          ) : null
+        )}
       </DialogContent>
       {note && (
         <ShareDialog

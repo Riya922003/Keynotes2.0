@@ -31,7 +31,7 @@ export async function inviteUserToNote(documentId: string, inviteeEmail: string)
   // Revalidate the note page so incremental static regeneration updates
   try {
     revalidatePath(`/notes/${documentId}`);
-  } catch (_err) {
+  } catch {
     // Swallow revalidation errors but continue (ignore in production/dev)
   }
 

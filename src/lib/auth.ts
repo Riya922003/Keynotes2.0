@@ -1,11 +1,6 @@
-import { AuthOptions } from 'next-auth';
+import { AuthOptions } from 'next-auth'
 
-// Export a lazy getter so initialization that depends on DB/env
-// doesn't run during module evaluation (which can trigger dev
-// server webpack/runtime issues). This function constructs the
-// full AuthOptions at request time.
-export async function getAuthOptions(): Promise<AuthOptions> {
-  // Dynamic imports to avoid side-effects at module load
+async function buildAuthOptions(): Promise<AuthOptions> {
   const GoogleProvider = (await import('next-auth/providers/google')).default
   const CredentialsProvider = (await import('next-auth/providers/credentials')).default
   const { DrizzleAdapter } = await import('@auth/drizzle-adapter')
@@ -30,7 +25,7 @@ export async function getAuthOptions(): Promise<AuthOptions> {
       name: 'Credentials',
       credentials: {
         email: { type: 'text' },
-        password: { type: 'text' }
+        password: { type: 'text' },
       },
       async authorize(credentials: { email?: string; password?: string } | undefined) {
         if (!credentials?.email || !credentials?.password) return null
@@ -49,7 +44,7 @@ export async function getAuthOptions(): Promise<AuthOptions> {
           if (!isPasswordValid) return null
 
           return { id: user.id, email: user.email, name: user.name, image: user.image }
-        } catch (_err) {
+        } catch {
           // swallow and return null — auth simply fails
           return null
         }
@@ -94,3 +89,5 @@ export async function getAuthOptions(): Promise<AuthOptions> {
 
   return authOptions
 }
+
+export const authOptions: AuthOptions = await buildAuthOptions()

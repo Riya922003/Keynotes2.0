@@ -1,8 +1,9 @@
  'use client'
 
 import { useState, useEffect } from 'react'
+import ShareDialog from '@/components/collaboration/ShareDialog'
 import { useRouter } from 'next/navigation'
-import { Pin, Archive, Palette, Star } from 'lucide-react'
+import { Pin, Archive, Palette, Star, Share } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,7 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
 
   // Local optimistic copy of note for UI updates
   const [localNote, setLocalNote] = useState<NoteEditorModalProps['note'] | null>(note)
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
 
   useEffect(() => {
     setLocalNote(note)
@@ -125,11 +127,27 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
     }
   })()
 
+  useEffect(() => {
+    // Reset share dialog state when the editor is closed
+    if (!note) setIsShareModalOpen(false)
+  }, [note])
+
   return (
-    <Dialog open={note !== null} onOpenChange={() => onClose()}>
+    <Dialog open={note !== null} onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           {/* Header content can be added here if needed */}
+          <div className="ml-auto">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 rounded-full hover:bg-muted"
+              onClick={() => setIsShareModalOpen(true)}
+              title="Share note"
+            >
+              <Share className={`w-4 h-4 ${modalIconClass}`} />
+            </Button>
+          </div>
         </DialogHeader>
         
         {/* Note Editor */}
@@ -189,6 +207,14 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
           </Button>
         </div>
       </DialogContent>
+      {note && (
+        <ShareDialog
+          documentId={note.id}
+          authorId={note.author_id}
+          open={isShareModalOpen}
+          onOpenChange={setIsShareModalOpen}
+        />
+      )}
     </Dialog>
   )
 }

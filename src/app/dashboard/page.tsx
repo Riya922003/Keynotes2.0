@@ -1,6 +1,8 @@
+export const dynamic = 'force-dynamic';
+
 import { getServerSession } from "next-auth"
 import { redirect } from "next/navigation"
-import { authOptions } from "@/lib/auth"
+import { getAuthOptions } from "@/lib/auth"
 import HelpFAB from "@/components/HelpFAB"
 import { ThemeToggleButton } from "@/components/ThemeToggleButton"
 import { DashboardUserNav } from "@/components/DashboardUserNav"
@@ -8,6 +10,7 @@ import Link from "next/link"
 import RecentNotes from '@/components/dashboard/RecentNotes'
 
 export default async function DashboardPage() {
+  const authOptions = await getAuthOptions()
   const session = await getServerSession(authOptions)
 
   if (!session) {

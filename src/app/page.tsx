@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
-import { authOptions } from '@/lib/auth'
+import { getAuthOptions } from '@/lib/auth'
 import GetStartedButton from '@/components/GetStartedButton'
 import FeatureShowcase from '@/components/landing/FeatureShowcase'
 import Features from '@/components/landing/Features'
@@ -9,6 +9,7 @@ import Image from 'next/image'
 import HelpFAB from '@/components/HelpFAB'
 
 export default async function Home() {
+  const authOptions = await getAuthOptions()
   const session = await getServerSession(authOptions)
 
   // If user is already authenticated, redirect to dashboard

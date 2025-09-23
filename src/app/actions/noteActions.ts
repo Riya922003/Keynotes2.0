@@ -6,7 +6,7 @@ import { documents } from '@/lib/db/schema/documents'
 import { workspaces } from '@/lib/db/schema/workspaces'
 import { revalidatePath } from 'next/cache'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getAuthOptions } from '@/lib/auth'
 
 // Generate a unique ID for documents
 function generateId(): string {
@@ -38,7 +38,7 @@ async function getDefaultWorkspace(userId: string): Promise<string> {
 }
 
 export async function createNote(title?: string, content?: string, color?: string) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(await getAuthOptions())
   
   if (!session?.user?.id) {
     throw new Error('Authentication required')
@@ -82,7 +82,7 @@ export async function updateNote(
   reminderDate?: string,
   reminderRepeat?: string
 ) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(await getAuthOptions())
   
   if (!session?.user?.id) {
     throw new Error('Authentication required')
@@ -153,7 +153,7 @@ export async function updateNote(
 
 export async function deleteNote(noteId: string) {
   try {
-    const session = await getServerSession(authOptions)
+  const session = await getServerSession(await getAuthOptions())
     
     if (!session?.user?.id) {
       throw new Error('Authentication required')
@@ -202,7 +202,7 @@ export async function deleteNote(noteId: string) {
 }
 
 export async function togglePinNote(noteId: string) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(await getAuthOptions())
   
   if (!session?.user?.id) {
     throw new Error('Authentication required')
@@ -246,7 +246,7 @@ export async function togglePinNote(noteId: string) {
 }
 
 export async function toggleArchiveNote(noteId: string) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(await getAuthOptions())
   
   if (!session?.user?.id) {
     throw new Error('Authentication required')
@@ -291,7 +291,7 @@ export async function toggleArchiveNote(noteId: string) {
 
 // Additional helper function to get notes for a user
 export async function getUserNotes() {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(await getAuthOptions())
   
   if (!session?.user?.id) {
     throw new Error('Authentication required')
@@ -313,7 +313,7 @@ export async function getUserNotes() {
 
 // Helper function to get a specific note
 export async function getNote(noteId: string) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(await getAuthOptions())
   
   if (!session?.user?.id) {
     throw new Error('Authentication required')
@@ -348,7 +348,7 @@ export async function updateNoteReminder(
   reminderTime?: string,
   reminderRepeat?: string
 ) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(await getAuthOptions())
   
   if (!session?.user?.id) {
     throw new Error('Authentication required')
@@ -387,7 +387,7 @@ export async function updateNoteReminder(
 }
 
 export async function removeNoteReminder(noteId: string) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(await getAuthOptions())
   
   if (!session?.user?.id) {
     throw new Error('Authentication required')
@@ -420,7 +420,7 @@ export async function removeNoteReminder(noteId: string) {
 }
 
 export async function updateNoteOrder(notes: { id: string; position: number }[]) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(await getAuthOptions())
   
   if (!session?.user?.id) {
     throw new Error('Authentication required')
@@ -467,7 +467,7 @@ export async function updateNoteOrder(notes: { id: string; position: number }[])
 
 // Toggle the starred status of a note
 export async function toggleStarNote(noteId: string) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(await getAuthOptions())
   
   if (!session?.user?.id) {
     throw new Error('Authentication required')
@@ -512,7 +512,7 @@ export async function toggleStarNote(noteId: string) {
 
 // Get counts for sidebar: non-archived notes, archived notes, and starred notes
 export async function getSidebarCounts() {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(await getAuthOptions())
 
   if (!session?.user?.id) {
     throw new Error('Authentication required')
@@ -570,7 +570,7 @@ export async function getSidebarCounts() {
 
 // Get the 3 most recently updated notes for the current user
 export async function getRecentNotes() {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(await getAuthOptions())
 
   if (!session?.user?.id) {
     throw new Error('Authentication required')

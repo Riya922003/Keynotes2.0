@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Pin, GripVertical, Palette, Bell, Archive, MoreHorizontal, Trash2, Star } from 'lucide-react'
+import { Pin, GripVertical, Palette, Bell, Archive, Trash2, Star, Share } from 'lucide-react'
+import ShareDialog from '@/components/collaboration/ShareDialog'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import NoteEditor from './NoteEditor'
@@ -64,6 +65,7 @@ export default function NoteCard({
   const [showReminderPicker, setShowReminderPicker] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isRemovingReminder, setIsRemovingReminder] = useState(false)
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   
   // Predefined colors for notes - using darker, more vibrant colors for better text visibility
   const noteColors = [
@@ -199,11 +201,7 @@ export default function NoteCard({
           target.closest('[data-reminder-modal="true"]')) {
         return
       }
-      
-      setShowColorPicker(false)
-      setShowReminderPicker(false)
     }
-
     if (showColorPicker || showReminderPicker) {
       document.addEventListener('mousedown', handleClickOutside)
       return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -335,12 +333,13 @@ export default function NoteCard({
         
         {/* Modal note editor */}
         <div className="fixed inset-0 flex items-center justify-center z-[9999] p-4">
-          <div
+          <div 
             className="w-full h-full flex items-center justify-center"
             data-note-editor-modal="true"
             onClick={(e) => {
               // Only close if clicking this container, not its children
               if (e.target === e.currentTarget) {
+                setIsShareModalOpen(false)
                 onToggleEdit(null)
               }
             }}
@@ -363,6 +362,7 @@ export default function NoteCard({
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation()
+                  setIsShareModalOpen(false)
                   onToggleEdit(null)
                 }}
                 className="h-8 w-8 p-0 hover:bg-muted/50 rounded-full"
@@ -561,19 +561,27 @@ export default function NoteCard({
                   <Trash2 className="w-4 h-4" />
                 </Button>
                 
-                {/* More options */}
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                {/* Share button (visible in toolbar) */}
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="h-8 w-8 p-0 hover:bg-muted/50 rounded-full"
-                  title="More"
+                  title="Share note"
                   onClick={(e) => {
                     e.stopPropagation()
-                    // Future: implement more options menu
+                    setIsShareModalOpen(true)
                   }}
                 >
-                  <MoreHorizontal className="w-4 h-4" />
+                  <Share className="w-4 h-4" />
                 </Button>
+                {note && (
+                  <ShareDialog
+                    documentId={note.id}
+                    authorId={note.author_id}
+                    open={isShareModalOpen}
+                    onOpenChange={setIsShareModalOpen}
+                  />
+                )}
               </div>
             </div>
           </Card>

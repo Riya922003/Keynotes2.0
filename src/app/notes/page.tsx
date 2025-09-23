@@ -1,6 +1,8 @@
+export const dynamic = 'force-dynamic';
+
 import { getServerSession } from "next-auth"
 import { redirect } from "next/navigation"
-import { authOptions } from "@/lib/auth"
+import { getAuthOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { documents } from "@/lib/db/schema/documents"
 import { eq, desc, asc, and, sql } from "drizzle-orm"
@@ -8,6 +10,7 @@ import NotesClientPage from "@/components/notes/NotesClientPage"
 import DatabaseError from "@/components/DatabaseError"
 
 export default async function NotesPage() {
+  const authOptions = await getAuthOptions()
   const session = await getServerSession(authOptions)
 
   if (!session) {

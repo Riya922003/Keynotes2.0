@@ -34,7 +34,6 @@ interface NotesClientPageProps {
 
 // Local note types used across the component
 type Note = NotesClientPageProps['initialNotes'][number]
-type NoteWithMatch = Note & { matchCount?: number }
 // GroupedNotes type intentionally removed; we infer structure from returned object in useMemo
 
 export default function NotesClientPage({ initialNotes }: NotesClientPageProps) {
@@ -45,6 +44,7 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [autoFocusNoteId, setAutoFocusNoteId] = useState<string | null>(null)
   const notesContainerRef = useRef<HTMLDivElement>(null)
+  const [isMounted, setIsMounted] = useState(false)
 
   // (no-op) keep mount logic earlier; skip debug warnings in production
 
@@ -155,6 +155,7 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
     // initialize local query from URL on mount and keep it in sync when the URL changes
     // (set even when empty so clearing the search in the sidebar updates the page)
     setSearchQuery(initialQ)
+    setIsMounted(true)
   }, [initialQ])
 
   const router = useRouter()
@@ -343,50 +344,25 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
           <CreateNoteForm onNoteCreated={handleNoteCreated} />
 
           {/* Notes grid (pinned, search results, other notes) */}
-          <div ref={notesContainerRef} className="space-y-6">
+          <div ref={notesContainerRef} className="space-y-6" suppressHydrationWarning>
             {notes.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-muted-foreground text-lg">You have no notes yet. Create one!</p>
               </div>
             ) : (
-              <DndContext onDragEnd={handleDragEnd}>
-                <section className="space-y-3">
-                  {searchQuery ? (
-                    // Searching: show only notes that actually match the query
-                    <div>
-                      <h3 className="px-2 text-xs text-muted-foreground">Results</h3>
-                      {(!grouped.matches || grouped.matches.length === 0) ? (
-                        <div className="px-2 py-6 text-sm text-muted-foreground">No results</div>
-                      ) : (
-                        <SortableContext items={(grouped.matches || []).map(n => n.id)} strategy={rectSortingStrategy}>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                            {(grouped.matches || []).map(n => (
-                              <div key={n.id} data-note-id={n.id}>
-                                <NoteCard
-                                  note={n}
-                                  isEditing={editingNoteId === n.id}
-                                  onToggleEdit={setEditingNoteId}
-                                  onNoteDeleted={handleNoteDeleted}
-                                  onNoteUpdated={handleNoteUpdated}
-                                  highlight={searchQuery}
-                                  matchCount={n.matchCount}
-                                  autoFocus={autoFocusNoteId === n.id}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        </SortableContext>
-                      )}
-                    </div>
-                  ) : (
-                    // Not searching: show pinned then other notes
-                    <div>
-                      {grouped.pinned.length > 0 && (
-                        <section className="mb-6">
-                          <h3 className="px-2 text-xs text-muted-foreground">Pinned</h3>
-                          <SortableContext items={grouped.pinned.map(n => n.id)} strategy={rectSortingStrategy}>
+              isMounted ? (
+                <DndContext onDragEnd={handleDragEnd}>
+                  <section className="space-y-3">
+                    {searchQuery ? (
+                      // Searching: show only notes that actually match the query
+                      <div>
+                        <h3 className="px-2 text-xs text-muted-foreground">Results</h3>
+                        {(!grouped.matches || grouped.matches.length === 0) ? (
+                          <div className="px-2 py-6 text-sm text-muted-foreground">No results</div>
+                        ) : (
+                          <SortableContext items={(grouped.matches || []).map(n => n.id)} strategy={rectSortingStrategy}>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                              {grouped.pinned.map(n => (
+                              {(grouped.matches || []).map(n => (
                                 <div key={n.id} data-note-id={n.id}>
                                   <NoteCard
                                     note={n}
@@ -402,34 +378,73 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
                               ))}
                             </div>
                           </SortableContext>
-                        </section>
-                      )}
+                        )}
+                      </div>
+                    ) : (
+                      // Not searching: show pinned then other notes
+                      <div>
+                        {grouped.pinned.length > 0 && (
+                          <section className="mb-6">
+                            <h3 className="px-2 text-xs text-muted-foreground">Pinned</h3>
+                            <SortableContext items={grouped.pinned.map(n => n.id)} strategy={rectSortingStrategy}>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                {grouped.pinned.map(n => (
+                                  <div key={n.id} data-note-id={n.id}>
+                                    <NoteCard
+                                      note={n}
+                                      isEditing={editingNoteId === n.id}
+                                      onToggleEdit={setEditingNoteId}
+                                      onNoteDeleted={handleNoteDeleted}
+                                      onNoteUpdated={handleNoteUpdated}
+                                      highlight={searchQuery}
+                                      matchCount={n.matchCount}
+                                      autoFocus={autoFocusNoteId === n.id}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </SortableContext>
+                          </section>
+                        )}
 
-                      {grouped.rest.length > 0 && (
-                        <section>
-                          <h3 className="px-2 text-sm font-medium text-muted-foreground">All notes</h3>
-                          <SortableContext items={grouped.rest.map(n => n.id)} strategy={rectSortingStrategy}>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                              {grouped.rest.map(n => (
-                                <div key={n.id} data-note-id={n.id}>
-                                  <NoteCard
-                                    note={n}
-                                    isEditing={editingNoteId === n.id}
-                                    onToggleEdit={setEditingNoteId}
-                                    onNoteDeleted={handleNoteDeleted}
-                                    onNoteUpdated={handleNoteUpdated}
-                                    autoFocus={autoFocusNoteId === n.id}
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          </SortableContext>
-                        </section>
-                      )}
-                    </div>
-                  )}
+                        {grouped.rest.length > 0 && (
+                          <section>
+                            <h3 className="px-2 text-sm font-medium text-muted-foreground">All notes</h3>
+                            <SortableContext items={grouped.rest.map(n => n.id)} strategy={rectSortingStrategy}>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                {grouped.rest.map(n => (
+                                  <div key={n.id} data-note-id={n.id}>
+                                    <NoteCard
+                                      note={n}
+                                      isEditing={editingNoteId === n.id}
+                                      onToggleEdit={setEditingNoteId}
+                                      onNoteDeleted={handleNoteDeleted}
+                                      onNoteUpdated={handleNoteUpdated}
+                                      autoFocus={autoFocusNoteId === n.id}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </SortableContext>
+                          </section>
+                        )}
+                      </div>
+                    )}
+                  </section>
+                </DndContext>
+              ) : (
+                // Non-interactive fallback during SSR / before client mount
+                <section className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {notes.map(n => (
+                      <div key={n.id} className="p-3 border rounded bg-card">
+                        <div className="font-semibold">{n.title || 'Untitled'}</div>
+                        <div className="text-sm text-muted-foreground">{(n.content && typeof n.content === 'string') ? (n.content.slice(0, 100)) : ''}</div>
+                      </div>
+                    ))}
+                  </div>
                 </section>
-              </DndContext>
+              )
             )}
           </div>
         </div>

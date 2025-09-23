@@ -16,17 +16,15 @@ export default async function NotesPage() {
     redirect('/')
   }
 
-  let notes: typeof documents.$inferSelect[] = []
+  let notes: any[] = []
+  let shared: any[] = []
   let error: string | null = null
 
   try {
-    // Fetch non-archived notes for the current user, ordered by position first, then by updated_at
-    // Treat NULL is_archived as not archived using SQL IS NOT TRUE to match sidebar counts
-    notes = await db
-      .select()
-      .from(documents)
-      .where(and(eq(documents.author_id, session.user.id), sql`${documents.is_archived} IS NOT TRUE`))
-      .orderBy(asc(documents.position), desc(documents.updated_at))
+    // Fetch owned + shared notes via a server-side helper
+  const { ownedNotes, sharedNotes } = await (await import('@/app/actions/noteActions')).getUserAndSharedNotes()
+  notes = ownedNotes || []
+  shared = sharedNotes || []
   } catch (dbError) {
     console.error('Database connection error:', dbError)
     error = dbError instanceof Error ? dbError.message : 'Database connection failed'
@@ -34,11 +32,12 @@ export default async function NotesPage() {
 
   // Filter to only include notes (not journals)
   const userNotes = notes.filter(note => note.type === 'note')
+  const sharedNotes = shared.filter(note => note && note.type === 'note')
 
   // If there's a database error, show an error page
   if (error) {
     return <DatabaseError error={error} />
   }
 
-  return <NotesClientPage initialNotes={userNotes} />
+  return <NotesClientPage initialNotes={userNotes} sharedNotes={sharedNotes} />
 }

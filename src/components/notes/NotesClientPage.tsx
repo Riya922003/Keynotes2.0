@@ -30,15 +30,32 @@ interface NotesClientPageProps {
     reminder_repeat?: string | null
     position?: number | null
   }>
+  sharedNotes?: Array<{
+    id: string
+    title: string | null
+    content: unknown
+    type: 'note' | 'journal'
+    created_at: Date
+    updated_at: Date
+    author_id: string
+    workspace_id: string
+    color?: string | null
+    is_pinned?: boolean | null
+    is_archived?: boolean | null
+    reminder_date?: Date | null
+    reminder_repeat?: string | null
+    position?: number | null
+  }>
 }
 
 // Local note types used across the component
 type Note = NotesClientPageProps['initialNotes'][number]
 // GroupedNotes type intentionally removed; we infer structure from returned object in useMemo
 
-export default function NotesClientPage({ initialNotes }: NotesClientPageProps) {
+export default function NotesClientPage({ initialNotes, sharedNotes: initialShared }: NotesClientPageProps) {
   // Don't sort initially - maintain original order and handle pinned/unpinned separately
-  const [notes, setNotes] = useState(initialNotes)
+  const [notes, setNotes] = useState<Note[]>(initialNotes)
+  const [sharedNotes, setSharedNotes] = useState<Note[]>(initialShared || [])
   const [searchQuery, setSearchQuery] = useState('')
   // mounted state not used; removed to satisfy lint
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
@@ -52,6 +69,9 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
   useEffect(() => {
     if ((!notes || notes.length === 0) && initialNotes && initialNotes.length > 0) {
       setNotes(initialNotes)
+    }
+    if ((!sharedNotes || sharedNotes.length === 0) && initialShared && initialShared.length > 0) {
+      setSharedNotes(initialShared)
     }
     // We only want to run this on initial mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -92,7 +112,7 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
   }, [editingNoteId]) // Dependency on editingNoteId to re-run when it changes
 
   // Function to handle note creation
-  const handleNoteCreated = (newNote: typeof notes[0]) => {
+  const handleNoteCreated = (newNote: Note) => {
     // Clear any active search so the new note appears in the default list
     setSearchQuery('')
 
@@ -105,7 +125,7 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
     } catch {}
 
   // Prepend the new note to the client list
-  setNotes(prevNotes => [newNote, ...prevNotes])
+  setNotes((prevNotes: Note[]) => [newNote, ...prevNotes])
 
   // Open the note editor for the newly created note and request autofocus
   setEditingNoteId(newNote.id)
@@ -126,20 +146,132 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
     }, 50)
   }
 
+  // Subscribe to server-sent events for real-time updates
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    let es: EventSource | null = null
+    try {
+      es = new EventSource('/api/realtime/notes')
+      es.addEventListener('notesUpdated', async (ev: MessageEvent) => {
+        try {
+          const payload = JSON.parse(ev.data || '{}')
+          // Handle enriched payloads locally to avoid fetching full lists
+          switch (payload.type) {
+            case 'noteCreated': {
+              const note = payload.note
+              if (note) setNotes((prev) => [note, ...prev])
+              break
+            }
+            case 'noteUpdated': {
+              const note = payload.note
+              if (note) {
+                setNotes((prev) => prev.map(n => n.id === note.id ? note : n))
+                setSharedNotes((prev) => prev.map(n => n.id === note.id ? note : n))
+              }
+              break
+            }
+            case 'noteDeleted': {
+              const id = payload.noteId
+              if (id) {
+                setNotes((prev) => prev.filter(n => n.id !== id))
+                setSharedNotes((prev) => prev.filter(n => n.id !== id))
+              }
+              break
+            }
+            case 'collaboratorAdded': {
+              // If the current user is the new collaborator, add to sharedNotes if included
+              // For now, rely on payload.documentId and optimistic update isn't performed here
+              // Fall back to refetching the shared list for accurate data
+              try {
+                const res = await fetch('/api/notes/list')
+                if (!res.ok) break
+                const data = await res.json()
+                if (data.sharedNotes) setSharedNotes(data.sharedNotes)
+              } catch {}
+              break
+            }
+            case 'collaboratorRemoved': {
+              // If collaborator removed, ensure removed note is not in sharedNotes
+              const { documentId, removedUserId } = payload
+              try {
+                // If current client is the user removed, remove from sharedNotes
+                // We don't know current user's id on client easily; safest is to refetch shared list
+                const res = await fetch('/api/notes/list')
+                if (!res.ok) break
+                const data = await res.json()
+                if (data.sharedNotes) setSharedNotes(data.sharedNotes)
+              } catch {}
+              break
+            }
+            default: {
+              // Unknown payload: conservative approach — refresh lists
+              try {
+                const res = await fetch('/api/notes/list')
+                if (!res.ok) return
+                const data = await res.json()
+                if (data.ownedNotes) setNotes(data.ownedNotes)
+                if (data.sharedNotes) setSharedNotes(data.sharedNotes)
+              } catch {}
+            }
+          }
+        } catch {
+          // On parse error, fallback to full fetch
+          try {
+            const res = await fetch('/api/notes/list')
+            if (!res.ok) return
+            const data = await res.json()
+            if (data.ownedNotes) setNotes(data.ownedNotes)
+            if (data.sharedNotes) setSharedNotes(data.sharedNotes)
+          } catch {}
+        }
+      })
+
+      // Fallback to generic message: refresh lists
+      es.onmessage = async () => {
+        try {
+          const res = await fetch('/api/notes/list')
+          if (!res.ok) return
+          const data = await res.json()
+          if (data.ownedNotes) setNotes(data.ownedNotes)
+          if (data.sharedNotes) setSharedNotes(data.sharedNotes)
+        } catch {}
+      }
+    } catch {
+      // If EventSource is unavailable, gracefully degrade to polling
+      let mounted = true
+      const fetchList = async () => {
+        try {
+          const res = await fetch('/api/notes/list')
+          if (!res.ok) return
+          const data = await res.json()
+          if (!mounted) return
+          if (data.ownedNotes) setNotes(data.ownedNotes)
+          if (data.sharedNotes) setSharedNotes(data.sharedNotes)
+        } catch {}
+      }
+      fetchList()
+      const id = setInterval(fetchList, 5000)
+      return () => { mounted = false; clearInterval(id) }
+    }
+
+    return () => {
+      try { es?.close() } catch {}
+    }
+  }, [])
+
   // Function to handle note deletion from client state
   const handleNoteDeleted = (deletedNoteId: string) => {
-    setNotes(prevNotes => prevNotes.filter(note => note.id !== deletedNoteId))
+    setNotes((prevNotes: Note[]) => prevNotes.filter((note: Note) => note.id !== deletedNoteId))
   }
 
   // Function to handle note updates (like pin status changes)
-  const handleNoteUpdated = (updatedNoteId: string, updates: Partial<typeof notes[0]>) => {
-    setNotes(prevNotes => {
+  const handleNoteUpdated = (updatedNoteId: string, updates: Partial<Note>) => {
+    setNotes((prevNotes: Note[]) => {
       // If the update marks the note as archived, remove it from the current list
       if (updates.is_archived) {
-        return prevNotes.filter(note => note.id !== updatedNoteId)
+        return prevNotes.filter((note: Note) => note.id !== updatedNoteId)
       }
-
-      return prevNotes.map(note => 
+      return prevNotes.map((note: Note) => 
         note.id === updatedNoteId ? { ...note, ...updates } : note
       )
     })
@@ -345,6 +477,27 @@ export default function NotesClientPage({ initialNotes }: NotesClientPageProps) 
 
           {/* Notes grid (pinned, search results, other notes) */}
           <div ref={notesContainerRef} className="space-y-6" suppressHydrationWarning>
+            {/* Shared notes section (notes shared with the current user) */}
+            {sharedNotes && sharedNotes.length > 0 && (
+              <div>
+                <h3 className="px-2 text-xs text-muted-foreground">Shared with you</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {sharedNotes.filter((s) => s && s.id).map((n: any, idx: number) => (
+                    <div key={n.id ?? `shared-${idx}`} data-note-id={n.id}>
+                      <NoteCard
+                        note={n}
+                        isEditing={editingNoteId === n.id}
+                        onToggleEdit={setEditingNoteId}
+                        onNoteDeleted={handleNoteDeleted}
+                        onNoteUpdated={handleNoteUpdated}
+                        highlight={searchQuery}
+                        matchCount={0}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {notes.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-muted-foreground text-lg">You have no notes yet. Create one!</p>

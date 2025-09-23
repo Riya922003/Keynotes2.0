@@ -1,10 +1,12 @@
  'use server'
 
-import { eq, and, sql, desc } from 'drizzle-orm'
+import { eq, and, sql, desc, asc } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { documents } from '@/lib/db/schema/documents'
+import { document_collaborators } from '@/lib/db/schema/collaborators'
 import { workspaces } from '@/lib/db/schema/workspaces'
 import { revalidatePath } from 'next/cache'
+import { broadcastNotesUpdated } from '@/lib/realtime'
 import { getServerSession } from 'next-auth'
 import { authOptions as topAuthOptions } from '@/lib/auth'
 
@@ -64,7 +66,11 @@ export async function createNote(title?: string, content?: string, color?: strin
 
     // Revalidate the notes page
     revalidatePath('/notes')
-    
+    try {
+      // Notify owner (creator) and any collaborators (none on new note yet, but keep pattern)
+      const recipients: string[] = [session.user.id]
+      broadcastNotesUpdated({ type: 'noteCreated', note: newNote[0] }, recipients)
+    } catch {}
     return newNote[0]
   } catch (error) {
     console.error('Error creating note:', error)
@@ -143,6 +149,12 @@ export async function updateNote(
     // Revalidate both the notes list and the specific note page
     revalidatePath('/notes')
     revalidatePath(`/notes/${noteId}`)
+    try {
+      // Fetch collaborator user ids so we can notify all affected users
+      const collabRows = await db.select({ userId: document_collaborators.userId }).from(document_collaborators).where(eq(document_collaborators.documentId, noteId))
+      const recipients = Array.from(new Set([session.user.id, ...collabRows.map(r => r.userId)]))
+      broadcastNotesUpdated({ type: 'noteUpdated', note: updatedNote[0] }, recipients)
+    } catch {}
     
     return updatedNote[0]
   } catch (error) {
@@ -193,7 +205,12 @@ export async function deleteNote(noteId: string) {
 
     // Revalidate the notes page
     revalidatePath('/notes')
-    
+    try {
+      // Notify owner and collaborators about deletion
+      const collabRows = await db.select({ userId: document_collaborators.userId }).from(document_collaborators).where(eq(document_collaborators.documentId, trimmedNoteId))
+      const recipients = Array.from(new Set([session.user.id, ...collabRows.map(r => r.userId)]))
+      broadcastNotesUpdated({ type: 'noteDeleted', noteId: deletedNote[0].id }, recipients)
+    } catch {}
     return { success: true, deletedNoteId: deletedNote[0].id }
     
   } catch (error) {
@@ -555,10 +572,20 @@ export async function getSidebarCounts() {
   const archivedCount = Number(((archivedCountRes[0] as unknown) as { count: string })?.count ?? 0)
   const starredCount = Number(((starredCountRes[0] as unknown) as { count: string })?.count ?? 0)
 
+    // Count shared (documents where user is collaborator and document isn't archived)
+    const sharedCountRes = await db
+      .select({ count: sql`count(*)` })
+      .from(document_collaborators)
+      .leftJoin(documents, eq(document_collaborators.documentId, documents.id))
+      .where(and(eq(document_collaborators.userId, session.user.id), sql`${documents.is_archived} IS NOT TRUE`, eq(documents.type, 'note')))
+
+    const sharedCount = Number(((sharedCountRes[0] as unknown) as { count: string })?.count ?? 0)
+
     return {
       notesCount,
       archivedCount,
       starredCount,
+      sharedCount,
     }
   } catch (error) {
     console.error('Error getting sidebar counts:', error)
@@ -588,5 +615,54 @@ export async function getRecentNotes() {
   } catch (error) {
     console.error('Error fetching recent notes:', error)
     throw new Error('Failed to fetch recent notes')
+  }
+}
+
+// Get both owned and shared notes for the current user (non-archived)
+export async function getUserAndSharedNotes() {
+  const session = await getServerSession(topAuthOptions)
+
+  if (!session?.user?.id) {
+    throw new Error('Authentication required')
+  }
+
+  try {
+    // Owned notes
+    const ownedNotes = await db
+      .select()
+      .from(documents)
+      .where(and(eq(documents.author_id, session.user.id), sql`${documents.is_archived} IS NOT TRUE`, eq(documents.type, 'note')))
+      .orderBy(asc(documents.position), desc(documents.updated_at))
+
+    // Shared notes via document_collaborators — select document fields explicitly
+    const sharedNotes = await db
+      .select({
+        id: documents.id,
+        title: documents.title,
+        content: documents.content,
+        type: documents.type,
+        mood_score: documents.mood_score,
+        created_at: documents.created_at,
+        updated_at: documents.updated_at,
+        author_id: documents.author_id,
+        workspace_id: documents.workspace_id,
+        color: documents.color,
+        is_pinned: documents.is_pinned,
+        is_archived: documents.is_archived,
+        is_starred: documents.is_starred,
+        is_favorited: documents.is_favorited,
+        reminder_date: documents.reminder_date,
+        reminder_repeat: documents.reminder_repeat,
+        position: documents.position,
+      })
+      .from(document_collaborators)
+      .leftJoin(documents, eq(document_collaborators.documentId, documents.id))
+      .where(and(eq(document_collaborators.userId, session.user.id), sql`${documents.is_archived} IS NOT TRUE`, eq(documents.type, 'note')))
+      .orderBy(desc(documents.updated_at))
+
+    return { ownedNotes, sharedNotes }
+  } catch (error) {
+    console.error('Error fetching user/shared notes:', error)
+    throw new Error('Failed to fetch notes')
   }
 }

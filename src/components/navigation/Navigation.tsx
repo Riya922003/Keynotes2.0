@@ -25,6 +25,7 @@ export default function Navigation({ children }: NavigationProps) {
         setNotesCount(res.notesCount ?? 0)
         setArchivedCount(res.archivedCount ?? 0)
         setStarredCount(res.starredCount ?? 0)
+        setSharedCount(res.sharedCount ?? 0)
       }
     } catch {
       // Fail silently - counts are non-critical
@@ -100,6 +101,7 @@ export default function Navigation({ children }: NavigationProps) {
   const [notesCount, setNotesCount] = useState<number | undefined>(undefined)
   const [archivedCount, setArchivedCount] = useState<number | undefined>(undefined)
   const [starredCount, setStarredCount] = useState<number | undefined>(undefined)
+  const [sharedCount, setSharedCount] = useState<number | undefined>(undefined)
 
   // Sidebar items (labels rendered dynamically with counts)
   const privateItems = [
@@ -110,7 +112,7 @@ export default function Navigation({ children }: NavigationProps) {
 
   const sharedItems = [
     { icon: Users, label: 'Team Workspace' },
-    { icon: Share, label: 'Shared with me' },
+    { icon: Share, label: 'Shared with me', count: sharedCount },
     { icon: FileText, label: 'Collaboration' },
   ]
 

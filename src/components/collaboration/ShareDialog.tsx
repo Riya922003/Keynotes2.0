@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
-import { getCollaborators, inviteUserToNote, getUserById } from '@/app/actions/collaborationActions'
+import { getCollaborators, inviteUserToNote, getUserById, removeCollaborator } from '@/app/actions/collaborationActions'
+import { Trash2 } from 'lucide-react'
 import Skeleton from '@/components/ui/skeleton'
 
 interface ShareDialogProps {
@@ -31,6 +32,7 @@ export default function ShareDialog({ documentId, authorId, open, onOpenChange }
   const { toast } = useToast()
 
   const [ownerInfo, setOwnerInfo] = useState<{ name?: string | null, email?: string | null } | null>(null)
+  const [removingIds, setRemovingIds] = useState<string[]>([])
 
   useEffect(() => {
     if (!open) return
@@ -129,14 +131,48 @@ export default function ShareDialog({ documentId, authorId, open, onOpenChange }
                 ))
               ) : (
                 collaborators.map((c) => (
-                  <div key={c.id} className="flex items-center gap-3">
-                    <Avatar>
-                      {c.avatar_url ? <AvatarImage src={c.avatar_url ?? undefined} alt={c.name ?? undefined} /> : <AvatarFallback>{(c.name || c.email || '').slice(0,2).toUpperCase()}</AvatarFallback>}
-                    </Avatar>
-                    <div>
-                      <div className="text-sm font-medium">{c.name || c.email}</div>
-                      <div className="text-xs text-muted-foreground">{c.role === 'editor' ? 'Editor' : 'Viewer'}</div>
+                  <div key={c.id} className="flex items-center gap-3 justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        {c.avatar_url ? <AvatarImage src={c.avatar_url ?? undefined} alt={c.name ?? undefined} /> : <AvatarFallback>{(c.name || c.email || '').slice(0,2).toUpperCase()}</AvatarFallback>}
+                      </Avatar>
+                      <div>
+                        <div className="text-sm font-medium">{c.name || c.email}</div>
+                        <div className="text-xs text-muted-foreground">{c.role === 'editor' ? 'Editor' : 'Viewer'}</div>
+                      </div>
                     </div>
+
+                    {/* Delete button - don't show for the owner */}
+                    {c.id !== authorId && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={`h-8 w-8 p-0 hover:bg-red-100 rounded-full transition-colors ${removingIds.includes(c.id) ? 'text-red-600 bg-red-100' : 'hover:text-red-600'}`}
+                        title="Remove collaborator"
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          if (removingIds.includes(c.id)) return
+                          setRemovingIds((s) => [...s, c.id])
+                          try {
+                            const res = await removeCollaborator(documentId, c.id)
+                            if ((res as { error?: string }).error) {
+                              toast({ title: 'Remove failed', description: (res as { error?: string }).error, variant: 'destructive' })
+                            } else {
+                              // optimistic client update
+                              setCollaborators((rows) => rows.filter((r) => r.id !== c.id))
+                              toast({ title: 'Removed', description: 'Collaborator removed.' })
+                            }
+                          } catch (err) {
+                            toast({ title: 'Remove failed', description: 'Something went wrong', variant: 'destructive' })
+                          } finally {
+                            setRemovingIds((s) => s.filter((id) => id !== c.id))
+                          }
+                        }}
+                        aria-label={`Remove ${c.email || c.name}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 ))
               )}

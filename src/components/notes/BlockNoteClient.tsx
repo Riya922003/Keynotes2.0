@@ -94,7 +94,7 @@ export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus, 
       await updateNote(note.id, noteTitle, contentString)
       onSaved?.({ title: noteTitle, content: contentString })
       try { (await import('@/lib/notesSync')).emitNotesUpdated() } catch {}
-    } catch (error) {
+    } catch {
       // swallow save errors locally; higher-level sync will attempt again
     }
   }, [note.id, note.title, note.content, onSaved])

@@ -11,29 +11,14 @@ import { CSS } from '@dnd-kit/utilities'
 import NoteEditor from './NoteEditor'
 import ReminderPicker from './ReminderPicker'
 import { deleteNote, updateNote, toggleArchiveNote, removeNoteReminder } from '@/app/actions/noteActions'
+import { NoteSummary } from '@/types/note'
 
 interface NoteCardProps {
-  note: {
-    id: string
-    title: string | null
-    content: unknown
-    type: 'note' | 'journal'
-    created_at: Date
-    updated_at: Date
-    author_id: string
-    workspace_id: string
-    color?: string | null | undefined
-    is_pinned?: boolean | null
-    is_archived?: boolean | null
-    is_starred?: boolean | null
-    reminder_date?: Date | null
-    reminder_repeat?: string | null
-    position?: number | null
-  }
+  note: NoteSummary
   isEditing: boolean
   onToggleEdit: (noteId: string | null) => void
   onNoteDeleted?: (noteId: string) => void
-  onNoteUpdated?: (noteId: string, updates: Partial<NoteCardProps['note']>) => void
+  onNoteUpdated?: (noteId: string, updates: Partial<NoteSummary>) => void
   // Optional highlight string to highlight matches in title/content
   highlight?: string
   // Optional number of matches found in this note
@@ -103,7 +88,7 @@ export default function NoteCard({
       onNoteUpdated?.(note.id, { color })
   try { import('@/lib/notesSync').then(m => m.emitNotesUpdated()) } catch {}
       setShowColorPicker(false)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to change color:', error)
       setShowColorPicker(false)
     }
@@ -127,7 +112,7 @@ export default function NoteCard({
       // Call the callback to update parent component's state
       onNoteDeleted?.(note.id)
   try { import('@/lib/notesSync').then(m => m.emitNotesUpdated()) } catch {}
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to delete note:', error)
       setIsDeleting(false)
     }
@@ -146,7 +131,7 @@ export default function NoteCard({
       // Call the callback to update parent component's state
       onNoteUpdated?.(note.id, { is_pinned: newPinStatus })
   try { import('@/lib/notesSync').then(m => m.emitNotesUpdated()) } catch {}
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to toggle pin:', error)
     }
   }
@@ -158,7 +143,7 @@ export default function NoteCard({
       await toggleStarNote(note.id)
       onNoteUpdated?.(note.id, { is_starred: !note.is_starred })
   try { import('@/lib/notesSync').then(m => m.emitNotesUpdated()) } catch {}
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to toggle star:', err)
     }
   }
@@ -169,7 +154,7 @@ export default function NoteCard({
       // Update the parent component's state
       onNoteUpdated?.(note.id, { is_archived: !note.is_archived })
   try { import('@/lib/notesSync').then(m => m.emitNotesUpdated()) } catch {}
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to toggle archive:', error)
     }
   }
@@ -183,7 +168,7 @@ export default function NoteCard({
       // Update the parent component's state immediately
       onNoteUpdated?.(note.id, { reminder_date: null, reminder_repeat: null })
   try { import('@/lib/notesSync').then(m => m.emitNotesUpdated()) } catch {}
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to remove reminder:', error)
     } finally {
       setIsRemovingReminder(false)
@@ -269,6 +254,19 @@ export default function NoteCard({
       return 'No content'
     } catch {
       return 'No content'
+    }
+  }
+
+  // Helper to coerce serializable date values to Date or null
+  const toDateOrNull = (v: string | Date | null | undefined): Date | null => {
+    if (!v) return null
+    if (v instanceof Date) return v
+    try {
+      const d = new Date(v as string)
+      if (isNaN(d.getTime())) return null
+      return d
+    } catch {
+      return null
     }
   }
   
@@ -378,9 +376,13 @@ export default function NoteCard({
               onClick={(e) => e.stopPropagation()}
             >
               <NoteEditor
-                note={note}
+                note={{
+                  ...note,
+                  created_at: toDateOrNull(note.created_at) || new Date(),
+                  updated_at: toDateOrNull(note.updated_at) || new Date(),
+                }}
                 titleColor={computedTitleColor}
-                  autoFocus={autoFocus}
+                autoFocus={autoFocus}
                 onSaved={(updates) => {
                   // Update parent immediately so UI reflects changes in real-time
                   if (updates.title !== undefined) {
@@ -399,7 +401,7 @@ export default function NoteCard({
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span>Edited {new Date(note.updated_at).toLocaleDateString()}</span>
+                        <span>Edited {toDateOrNull(note.updated_at)?.toLocaleDateString() ?? 'Unknown'}</span>
               </div>
               <div className="flex items-center gap-1 relative">
                 {/* Color palette */}
@@ -485,7 +487,7 @@ export default function NoteCard({
                     <ReminderPicker
                       noteId={note.id}
                       currentReminder={{
-                        date: note.reminder_date,
+                        date: toDateOrNull(note.reminder_date) as Date | null,
                         repeat: note.reminder_repeat
                       }}
                       onReminderSet={handleReminderSet}

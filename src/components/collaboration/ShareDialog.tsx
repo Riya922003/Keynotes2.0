@@ -162,7 +162,7 @@ export default function ShareDialog({ documentId, authorId, open, onOpenChange }
                               setCollaborators((rows) => rows.filter((r) => r.id !== c.id))
                               toast({ title: 'Removed', description: 'Collaborator removed.' })
                             }
-                          } catch (err) {
+                          } catch {
                             toast({ title: 'Remove failed', description: 'Something went wrong', variant: 'destructive' })
                           } finally {
                             setRemovingIds((s) => s.filter((id) => id !== c.id))

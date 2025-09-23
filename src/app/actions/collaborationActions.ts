@@ -87,7 +87,7 @@ export async function getUserById(userId: string) {
   try {
     const rows = await db.select({ id: users.id, name: users.name, email: users.email, image: users.image }).from(users).where(eq(users.id, userId)).limit(1)
     return rows[0] || null
-  } catch (err) {
+  } catch {
       // swallow DB lookup errors and return null so UI falls back to id
     return null
   }
@@ -122,7 +122,7 @@ export async function removeCollaborator(documentId: string, userId: string) {
       } catch {}
     } catch {}
     return { success: true };
-  } catch (err) {
+  } catch {
     return { error: 'Failed to remove collaborator.' };
   }
 }

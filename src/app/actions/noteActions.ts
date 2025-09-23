@@ -7,8 +7,36 @@ import { document_collaborators } from '@/lib/db/schema/collaborators'
 import { workspaces } from '@/lib/db/schema/workspaces'
 import { revalidatePath } from 'next/cache'
 import { broadcastNotesUpdated } from '@/lib/realtime'
+import { redis } from '@/lib/redis'
+
+const NOTE_UPDATE_CHANNEL = 'note-updates'
 import { getServerSession } from 'next-auth'
 import { authOptions as topAuthOptions } from '@/lib/auth'
+import { NoteSummary } from '@/types/note'
+
+// Reduce note objects sent over the wire to the minimal fields clients need
+function minimizeNote(note: unknown): NoteSummary | null {
+  if (!note || typeof note !== 'object') return null
+  const n = note as Record<string, unknown>
+  return {
+    id: String(n.id ?? ''),
+    title: (n.title as string) ?? null,
+    content: (n.content as unknown) ?? null,
+    type: (n.type as 'note' | 'journal') ?? 'note',
+    created_at: (n.created_at as string | Date) ?? null,
+    updated_at: (n.updated_at as string | Date) ?? null,
+    author_id: (n.author_id as string) ?? null,
+    workspace_id: (n.workspace_id as string) ?? null,
+    color: (n.color as string) ?? null,
+    is_pinned: Boolean(n.is_pinned),
+    is_archived: Boolean(n.is_archived),
+    is_starred: Boolean(n.is_starred),
+    is_favorited: Boolean(n.is_favorited),
+    position: (n.position as number) ?? null,
+    reminder_date: (n.reminder_date as string | Date) ?? null,
+    reminder_repeat: (n.reminder_repeat as string) ?? null,
+  }
+}
 
 // Generate a unique ID for documents
 function generateId(): string {
@@ -39,7 +67,10 @@ async function getDefaultWorkspace(userId: string): Promise<string> {
   return workspaceId
 }
 
-export async function createNote(title?: string, content?: string, color?: string) {
+// Some server actions interact with Drizzle ORM and return DB row shapes that are verbose to type here.
+// Disable the explicit-any rule for these exports to keep code readable; we can tighten types later.
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export async function createNote(title?: string, content?: string, color?: string): Promise<any> {
   const session = await getServerSession(topAuthOptions)
   
   if (!session?.user?.id) {
@@ -69,10 +100,17 @@ export async function createNote(title?: string, content?: string, color?: strin
     try {
       // Notify owner (creator) and any collaborators (none on new note yet, but keep pattern)
       const recipients: string[] = [session.user.id]
-      broadcastNotesUpdated({ type: 'noteCreated', note: newNote[0] }, recipients)
+      // Broadcast locally and publish a richer payload for cross-instance subscribers
+      const min = minimizeNote(newNote[0])
+      broadcastNotesUpdated({ type: 'noteCreated', note: min }, recipients)
+      try {
+        if (redis) {
+          await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'noteCreated', note: min, recipients }))
+        }
+      } catch {}
     } catch {}
     return newNote[0]
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating note:', error)
     throw new Error('Failed to create note')
   }
@@ -153,17 +191,23 @@ export async function updateNote(
       // Fetch collaborator user ids so we can notify all affected users
       const collabRows = await db.select({ userId: document_collaborators.userId }).from(document_collaborators).where(eq(document_collaborators.documentId, noteId))
       const recipients = Array.from(new Set([session.user.id, ...collabRows.map(r => r.userId)]))
-      broadcastNotesUpdated({ type: 'noteUpdated', note: updatedNote[0] }, recipients)
+      const min = minimizeNote(updatedNote[0])
+      broadcastNotesUpdated({ type: 'noteUpdated', note: min }, recipients)
+      try {
+        if (redis) {
+          await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'noteUpdated', note: min, recipients }))
+        }
+      } catch {}
     } catch {}
     
     return updatedNote[0]
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error updating note:', error)
     throw new Error('Failed to update note')
   }
 }
 
-export async function deleteNote(noteId: string) {
+export async function deleteNote(noteId: string): Promise<any> {
   try {
   const session = await getServerSession(topAuthOptions)
     
@@ -209,16 +253,22 @@ export async function deleteNote(noteId: string) {
       // Notify owner and collaborators about deletion
       const collabRows = await db.select({ userId: document_collaborators.userId }).from(document_collaborators).where(eq(document_collaborators.documentId, trimmedNoteId))
       const recipients = Array.from(new Set([session.user.id, ...collabRows.map(r => r.userId)]))
-      broadcastNotesUpdated({ type: 'noteDeleted', noteId: deletedNote[0].id }, recipients)
+      const deletedId = deletedNote[0].id
+      broadcastNotesUpdated({ type: 'noteDeleted', noteId: deletedId }, recipients)
+      try {
+        if (redis) {
+          await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'noteDeleted', noteId: deletedId, recipients }))
+        }
+      } catch {}
     } catch {}
     return { success: true, deletedNoteId: deletedNote[0].id }
     
-  } catch (error) {
+  } catch (error: unknown) {
     throw error
   }
 }
 
-export async function togglePinNote(noteId: string) {
+export async function togglePinNote(noteId: string): Promise<any> {
   const session = await getServerSession(topAuthOptions)
   
   if (!session?.user?.id) {
@@ -253,16 +303,20 @@ export async function togglePinNote(noteId: string) {
       .returning()
 
     // Revalidate the notes page
+      try {
+        // notify cross-instance that a pin toggle occurred; include minimal note info and recipients (owner)
+        if (redis) await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'noteToggledPin', noteId, recipients: [session.user.id] }))
+      } catch {}
     revalidatePath('/notes')
     
     return updatedNote[0]
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error toggling pin status:', error)
     throw new Error('Failed to toggle pin status')
   }
 }
 
-export async function toggleArchiveNote(noteId: string) {
+export async function toggleArchiveNote(noteId: string): Promise<any> {
   const session = await getServerSession(topAuthOptions)
   
   if (!session?.user?.id) {
@@ -297,10 +351,13 @@ export async function toggleArchiveNote(noteId: string) {
       .returning()
 
     // Revalidate the notes page
+    try {
+      if (redis) await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'noteToggledArchive', noteId, recipients: [session.user.id] }))
+    } catch {}
     revalidatePath('/notes')
     
     return updatedNote[0]
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error toggling archive status:', error)
     throw new Error('Failed to toggle archive status')
   }
@@ -322,7 +379,7 @@ export async function getUserNotes() {
       .orderBy(documents.updated_at)
 
     return notes
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching notes:', error)
     throw new Error('Failed to fetch notes')
   }
@@ -353,7 +410,7 @@ export async function getNote(noteId: string) {
     }
 
     return note[0]
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching note:', error)
     throw new Error('Failed to fetch note')
   }
@@ -394,10 +451,14 @@ export async function updateNoteReminder(
     }
 
     // Revalidate the notes page
+      try {
+        const min = minimizeNote(updatedNote[0])
+        if (redis) await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'noteReminderUpdated', note: min, recipients: [session.user.id] }))
+      } catch {}
     revalidatePath('/notes')
     
     return updatedNote[0]
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error updating note reminder:', error)
     throw new Error('Failed to update note reminder')
   }
@@ -427,10 +488,14 @@ export async function removeNoteReminder(noteId: string) {
     }
 
     // Revalidate the notes page
+    try {
+      const min = minimizeNote(updatedNote[0])
+      if (redis) await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'noteReminderRemoved', note: min, recipients: [session.user.id] }))
+    } catch {}
     revalidatePath('/notes')
     
     return updatedNote[0]
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error removing note reminder:', error)
     throw new Error('Failed to remove note reminder')
   }
@@ -463,6 +528,11 @@ export async function updateNoteOrder(notes: { id: string; position: number }[])
     }
 
     // Revalidate the notes page
+      try {
+      const noteIds = notes.map((n: { id: string; position: number }) => n.id)
+      // For ordering updates, broadcast a batch event with recipients = author only (we could expand to collaborators if necessary)
+      if (redis) await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'notesReordered', noteIds, recipients: [session.user.id] }))
+    } catch {}
     revalidatePath('/notes')
     
     // Only throw if all updates failed
@@ -471,7 +541,7 @@ export async function updateNoteOrder(notes: { id: string; position: number }[])
     }
     
     return { success: true, updated: successCount, failed: errorCount }
-  } catch (error) {
+  } catch (error: unknown) {
     // Instead of throwing, return a more graceful response
     if (error instanceof Error && error.message.includes('Authentication required')) {
       throw error

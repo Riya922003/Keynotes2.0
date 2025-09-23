@@ -13,40 +13,14 @@ import { ThemeToggleButton } from '@/components/ThemeToggleButton'
 import { updateNoteOrder } from '@/app/actions/noteActions'
 // Note: drag-and-drop ordering has been removed from this component so sorting/searching can be handled client-side
 
+import { NoteSummary } from '@/types/note'
+import { unwrapEventPayload } from '@/lib/hooks/eventPayload'
+
 interface NotesClientPageProps {
-  initialNotes: Array<{
-    id: string
-    title: string | null
-    content: unknown
-    type: 'note' | 'journal'
-    created_at: Date
-    updated_at: Date
-    author_id: string
-    workspace_id: string
-    color?: string | null
-    is_pinned?: boolean | null
-    is_archived?: boolean | null
-    reminder_date?: Date | null
-    reminder_repeat?: string | null
-    position?: number | null
-  }>
-  sharedNotes?: Array<{
-    id: string
-    title: string | null
-    content: unknown
-    type: 'note' | 'journal'
-    created_at: Date
-    updated_at: Date
-    author_id: string
-    workspace_id: string
-    color?: string | null
-    is_pinned?: boolean | null
-    is_archived?: boolean | null
-    reminder_date?: Date | null
-    reminder_repeat?: string | null
-    position?: number | null
-  }>
+  initialNotes: NoteSummary[]
+  sharedNotes?: NoteSummary[]
 }
+ 
 
 // Local note types used across the component
 type Note = NotesClientPageProps['initialNotes'][number]
@@ -66,6 +40,8 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
   // (no-op) keep mount logic earlier; skip debug warnings in production
 
   // Ensure client state is populated from server props on mount in case of hydration mismatch
+  // We intentionally only want to run this on mount to sync server-provided lists once.
+   
   useEffect(() => {
     if ((!notes || notes.length === 0) && initialNotes && initialNotes.length > 0) {
       setNotes(initialNotes)
@@ -73,9 +49,7 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
     if ((!sharedNotes || sharedNotes.length === 0) && initialShared && initialShared.length > 0) {
       setSharedNotes(initialShared)
     }
-    // We only want to run this on initial mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [initialNotes, initialShared])
 
   // Centralized click outside logic
   useEffect(() => {
@@ -146,60 +120,74 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
     }, 50)
   }
 
-  // Subscribe to server-sent events for real-time updates
+  // Subscribe to server-sent events for real-time updates (richer payloads)
   useEffect(() => {
     if (typeof window === 'undefined') return
     let es: EventSource | null = null
     try {
-      es = new EventSource('/api/realtime/notes')
-      es.addEventListener('notesUpdated', async (ev: MessageEvent) => {
+      // Use the canonical Redis-backed SSE endpoint
+      es = new EventSource('/api/notes/updates')
+      es.addEventListener('message', async (ev: MessageEvent) => {
         try {
-          const payload = JSON.parse(ev.data || '{}')
-          // Handle enriched payloads locally to avoid fetching full lists
-          switch (payload.type) {
+          const payload: unknown = (() => {
+            try { return JSON.parse(typeof ev.data === 'string' ? ev.data : JSON.stringify(ev.data)) as unknown } catch { return ev.data as unknown }
+          })()
+
+          const maybe = unwrapEventPayload(payload)
+          const b = maybe
+          if (!b) {
+            // Unknown payload — fallback to refreshing lists
+            try {
+              const res = await fetch('/api/notes/list')
+              if (!res.ok) return
+              const data = await res.json()
+              if (data.ownedNotes) setNotes(data.ownedNotes)
+              if (data.sharedNotes) setSharedNotes(data.sharedNotes)
+            } catch {}
+            return
+          }
+          const isNoteSummary = (v: unknown): v is NoteSummary => {
+            return !!v && typeof v === 'object' && typeof ((v as Record<string, unknown>).id) === 'string'
+          }
+
+          switch (b.type) {
             case 'noteCreated': {
-              const note = payload.note
-              if (note) setNotes((prev) => [note, ...prev])
+              const note = b.note
+              if (isNoteSummary(note)) {
+                const ns = note
+                setNotes((prev) => {
+                  // If note already exists, merge fields; otherwise prepend
+                  if (prev.some(n => n.id === ns.id)) {
+                    return prev.map(n => n.id === ns.id ? { ...n, ...ns } : n)
+                  }
+                  return [ns, ...prev]
+                })
+              }
               break
             }
             case 'noteUpdated': {
-              const note = payload.note
+              const note = b.note
               if (note) {
-                setNotes((prev) => prev.map(n => n.id === note.id ? note : n))
-                setSharedNotes((prev) => prev.map(n => n.id === note.id ? note : n))
+                setNotes((prev) => prev.map(n => n.id === note.id ? { ...n, ...note } : n))
+                setSharedNotes((prev) => prev.map(n => n.id === note.id ? { ...n, ...note } : n))
               }
               break
             }
             case 'noteDeleted': {
-              const id = payload.noteId
+              const id = b.noteId
               if (id) {
                 setNotes((prev) => prev.filter(n => n.id !== id))
                 setSharedNotes((prev) => prev.filter(n => n.id !== id))
               }
               break
             }
-            case 'collaboratorAdded': {
-              // If the current user is the new collaborator, add to sharedNotes if included
-              // For now, rely on payload.documentId and optimistic update isn't performed here
-              // Fall back to refetching the shared list for accurate data
+            case 'notesReordered': {
+              // If the current user is the author, and we received noteIds, we can reorder locally by fetching minimal metadata
               try {
                 const res = await fetch('/api/notes/list')
                 if (!res.ok) break
                 const data = await res.json()
-                if (data.sharedNotes) setSharedNotes(data.sharedNotes)
-              } catch {}
-              break
-            }
-            case 'collaboratorRemoved': {
-              // If collaborator removed, ensure removed note is not in sharedNotes
-              const { documentId, removedUserId } = payload
-              try {
-                // If current client is the user removed, remove from sharedNotes
-                // We don't know current user's id on client easily; safest is to refetch shared list
-                const res = await fetch('/api/notes/list')
-                if (!res.ok) break
-                const data = await res.json()
-                if (data.sharedNotes) setSharedNotes(data.sharedNotes)
+                if (data.ownedNotes) setNotes(data.ownedNotes)
               } catch {}
               break
             }
@@ -225,19 +213,8 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
           } catch {}
         }
       })
-
-      // Fallback to generic message: refresh lists
-      es.onmessage = async () => {
-        try {
-          const res = await fetch('/api/notes/list')
-          if (!res.ok) return
-          const data = await res.json()
-          if (data.ownedNotes) setNotes(data.ownedNotes)
-          if (data.sharedNotes) setSharedNotes(data.sharedNotes)
-        } catch {}
-      }
     } catch {
-      // If EventSource is unavailable, gracefully degrade to polling
+      // If EventSource is unavailable, gracefully degrade to polling (kept from previous behavior)
       let mounted = true
       const fetchList = async () => {
         try {
@@ -482,7 +459,7 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
               <div>
                 <h3 className="px-2 text-xs text-muted-foreground">Shared with you</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {sharedNotes.filter((s) => s && s.id).map((n: any, idx: number) => (
+                  {sharedNotes.filter((s) => s && s.id).map((n: NoteSummary, idx: number) => (
                     <div key={n.id ?? `shared-${idx}`} data-note-id={n.id}>
                       <NoteCard
                         note={n}

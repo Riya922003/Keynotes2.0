@@ -3,11 +3,9 @@ export const dynamic = 'force-dynamic';
 import { getServerSession } from "next-auth"
 import { redirect } from "next/navigation"
 import { authOptions as topAuthOptions } from "@/lib/auth"
-import { db } from "@/lib/db"
-import { documents } from "@/lib/db/schema/documents"
-import { eq, desc, asc, and, sql } from "drizzle-orm"
 import NotesClientPage from "@/components/notes/NotesClientPage"
 import DatabaseError from "@/components/DatabaseError"
+import NoteUpdatesListener from '@/components/notes/NoteUpdatesListener'
 
 export default async function NotesPage() {
   const session = await getServerSession(topAuthOptions)
@@ -16,15 +14,15 @@ export default async function NotesPage() {
     redirect('/')
   }
 
-  let notes: any[] = []
-  let shared: any[] = []
+  let notes: import('@/types/note').NoteSummary[] = []
+  let shared: import('@/types/note').NoteSummary[] = []
   let error: string | null = null
 
   try {
     // Fetch owned + shared notes via a server-side helper
   const { ownedNotes, sharedNotes } = await (await import('@/app/actions/noteActions')).getUserAndSharedNotes()
-  notes = ownedNotes || []
-  shared = sharedNotes || []
+  notes = (ownedNotes || []) as import('@/types/note').NoteSummary[]
+  shared = (sharedNotes || []) as import('@/types/note').NoteSummary[]
   } catch (dbError) {
     console.error('Database connection error:', dbError)
     error = dbError instanceof Error ? dbError.message : 'Database connection failed'
@@ -39,5 +37,10 @@ export default async function NotesPage() {
     return <DatabaseError error={error} />
   }
 
-  return <NotesClientPage initialNotes={userNotes} sharedNotes={sharedNotes} />
+  return (
+    <>
+      <NoteUpdatesListener />
+      <NotesClientPage initialNotes={userNotes} sharedNotes={sharedNotes} />
+    </>
+  )
 }

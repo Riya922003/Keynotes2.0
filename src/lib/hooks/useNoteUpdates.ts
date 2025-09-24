@@ -7,7 +7,7 @@ export { unwrapEventPayload as parseEventData }
 // Re-export the UpdatePayload type for consumers that import it from this hook
 export type { UpdatePayload } from './eventPayload'
 
-export default function useNoteUpdates(onUpdate: (payload: UpdatePayload) => void) {
+export default function useNoteUpdates(onUpdate: (data: UpdatePayload) => void) {
   const esRef = useRef<EventSource | null>(null)
 
   useEffect(() => {

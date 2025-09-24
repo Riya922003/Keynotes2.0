@@ -133,6 +133,18 @@ export async function updateNote(
   }
 
   try {
+    // If content arrived as a JSON string (e.g. double-stringified), parse it so
+    // we always store a proper JS object into the JSONB column.
+    if (typeof content === 'string') {
+      try {
+        content = JSON.parse(content)
+      } catch (parseErr) {
+        // If parsing fails, leave the raw string so we don't crash the update.
+        // Emit a warning to help diagnose malformed payloads.
+        console.warn('updateNote: failed to JSON.parse(content) - saving raw string', parseErr)
+      }
+    }
+
     // Prepare the update object
     const updateData: {
       title: string
@@ -145,7 +157,7 @@ export async function updateNote(
       reminder_repeat?: string | null
     } = {
       title,
-      content: content || null, // Store as plain text, don't parse as JSON
+      content: content ?? null,
       updated_at: new Date(),
     }
 
@@ -304,8 +316,8 @@ export async function togglePinNote(noteId: string): Promise<any> {
 
     // Revalidate the notes page
       try {
-        // notify cross-instance that a pin toggle occurred; include minimal note info and recipients (owner)
-        if (redis) await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'noteToggledPin', noteId, recipients: [session.user.id] }))
+        // notify cross-instance that a pin toggle occurred; publish the full updated note so clients can update state without refetch
+        if (redis) await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'noteToggledPin', payload: updatedNote[0], recipients: [session.user.id] }))
       } catch {}
     revalidatePath('/notes')
     
@@ -352,7 +364,8 @@ export async function toggleArchiveNote(noteId: string): Promise<any> {
 
     // Revalidate the notes page
     try {
-      if (redis) await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'noteToggledArchive', noteId, recipients: [session.user.id] }))
+      // Publish the full updated note for consumers to apply locally
+      if (redis) await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'noteToggledArchive', payload: updatedNote[0], recipients: [session.user.id] }))
     } catch {}
     revalidatePath('/notes')
     

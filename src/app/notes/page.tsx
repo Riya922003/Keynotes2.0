@@ -5,7 +5,6 @@ import { redirect } from "next/navigation"
 import { authOptions as topAuthOptions } from "@/lib/auth"
 import NotesClientPage from "@/components/notes/NotesClientPage"
 import DatabaseError from "@/components/DatabaseError"
-import NoteUpdatesListener from '@/components/notes/NoteUpdatesListener'
 
 export default async function NotesPage() {
   const session = await getServerSession(topAuthOptions)
@@ -39,7 +38,6 @@ export default async function NotesPage() {
 
   return (
     <>
-      <NoteUpdatesListener />
       <NotesClientPage initialNotes={userNotes} sharedNotes={sharedNotes} />
     </>
   )

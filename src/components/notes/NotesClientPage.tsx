@@ -15,6 +15,7 @@ import { updateNoteOrder } from '@/app/actions/noteActions'
 
 import { NoteSummary } from '@/types/note'
 import { unwrapEventPayload } from '@/lib/hooks/eventPayload'
+import useNoteUpdates from '@/lib/hooks/useNoteUpdates'
 
 interface NotesClientPageProps {
   initialNotes: NoteSummary[]
@@ -120,121 +121,83 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
     }, 50)
   }
 
-  // Subscribe to server-sent events for real-time updates (richer payloads)
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    let es: EventSource | null = null
-    try {
-      // Use the canonical Redis-backed SSE endpoint
-      es = new EventSource('/api/notes/updates')
-      es.addEventListener('message', async (ev: MessageEvent) => {
-        try {
-          const payload: unknown = (() => {
-            try { return JSON.parse(typeof ev.data === 'string' ? ev.data : JSON.stringify(ev.data)) as unknown } catch { return ev.data as unknown }
-          })()
+  // Use the shared useNoteUpdates hook to receive normalized payloads from the SSE endpoint
+  useNoteUpdates(async (b: import('@/lib/hooks/eventPayload').UpdatePayload) => {
+    // If payload couldn't be normalized, try a conservative refresh
+    if (!b) {
+      try {
+        const res = await fetch('/api/notes/list')
+        if (!res.ok) return
+        const data = await res.json()
+        if (data.ownedNotes) setNotes(data.ownedNotes)
+        if (data.sharedNotes) setSharedNotes(data.sharedNotes)
+      } catch {}
+      return
+    }
 
-          const maybe = unwrapEventPayload(payload)
-          const b = maybe
-          if (!b) {
-            // Unknown payload — fallback to refreshing lists
-            try {
-              const res = await fetch('/api/notes/list')
-              if (!res.ok) return
-              const data = await res.json()
-              if (data.ownedNotes) setNotes(data.ownedNotes)
-              if (data.sharedNotes) setSharedNotes(data.sharedNotes)
-            } catch {}
-            return
-          }
-          const isNoteSummary = (v: unknown): v is NoteSummary => {
-            return !!v && typeof v === 'object' && typeof ((v as Record<string, unknown>).id) === 'string'
-          }
+    const isNoteSummary = (v: unknown): v is NoteSummary => {
+      return !!v && typeof v === 'object' && typeof ((v as Record<string, unknown>).id) === 'string'
+    }
 
-          switch (b.type) {
-            case 'noteCreated': {
-              const note = b.note
-              if (isNoteSummary(note)) {
-                const ns = note
-                setNotes((prev) => {
-                  // If note already exists, merge fields; otherwise prepend
-                  if (prev.some(n => n.id === ns.id)) {
-                    return prev.map(n => n.id === ns.id ? { ...n, ...ns } : n)
-                  }
-                  return [ns, ...prev]
-                })
-              }
-              break
-            }
-            case 'noteUpdated': {
-              const note = b.note
-              if (note) {
-                setNotes((prev) => prev.map(n => n.id === note.id ? { ...n, ...note } : n))
-                setSharedNotes((prev) => prev.map(n => n.id === note.id ? { ...n, ...note } : n))
-              }
-              break
-            }
-            case 'noteDeleted': {
-              const id = b.noteId
-              if (id) {
-                setNotes((prev) => prev.filter(n => n.id !== id))
-                setSharedNotes((prev) => prev.filter(n => n.id !== id))
-              }
-              break
-            }
-            case 'notesReordered': {
-              // If the current user is the author, and we received noteIds, we can reorder locally by fetching minimal metadata
-              try {
-                const res = await fetch('/api/notes/list')
-                if (!res.ok) break
-                const data = await res.json()
-                if (data.ownedNotes) setNotes(data.ownedNotes)
-              } catch {}
-              break
-            }
-            default: {
-              // Unknown payload: conservative approach — refresh lists
-              try {
-                const res = await fetch('/api/notes/list')
-                if (!res.ok) return
-                const data = await res.json()
-                if (data.ownedNotes) setNotes(data.ownedNotes)
-                if (data.sharedNotes) setSharedNotes(data.sharedNotes)
-              } catch {}
-            }
-          }
-        } catch {
-          // On parse error, fallback to full fetch
-          try {
-            const res = await fetch('/api/notes/list')
-            if (!res.ok) return
-            const data = await res.json()
-            if (data.ownedNotes) setNotes(data.ownedNotes)
-            if (data.sharedNotes) setSharedNotes(data.sharedNotes)
-          } catch {}
+    switch (b.type) {
+      case 'noteCreated': {
+        const note = b.note
+        if (isNoteSummary(note)) {
+          const ns = note
+          setNotes((prev) => {
+            if (prev.some(n => n.id === ns.id)) return prev.map(n => n.id === ns.id ? { ...n, ...ns } : n)
+            return [ns, ...prev]
+          })
         }
-      })
-    } catch {
-      // If EventSource is unavailable, gracefully degrade to polling (kept from previous behavior)
-      let mounted = true
-      const fetchList = async () => {
+        break
+      }
+      case 'noteUpdated': {
+        const incoming = (b as any).payload ?? (b as any).note
+        if (isNoteSummary(incoming)) {
+          const note = incoming as NoteSummary
+          setNotes((prev) => prev.map(n => n.id === note.id ? { ...n, ...note } : n))
+          setSharedNotes((prev) => prev.map(n => n.id === note.id ? { ...n, ...note } : n))
+        }
+        break
+      }
+      case 'noteDeleted': {
+        const id = b.noteId
+        if (id) {
+          setNotes((prev) => prev.filter(n => n.id !== id))
+          setSharedNotes((prev) => prev.filter(n => n.id !== id))
+        }
+        break
+      }
+      case 'notesReordered': {
+        try {
+          const res = await fetch('/api/notes/list')
+          if (!res.ok) break
+          const data = await res.json()
+          if (data.ownedNotes) setNotes(data.ownedNotes)
+        } catch {}
+        break
+      }
+      default: {
         try {
           const res = await fetch('/api/notes/list')
           if (!res.ok) return
           const data = await res.json()
-          if (!mounted) return
           if (data.ownedNotes) setNotes(data.ownedNotes)
           if (data.sharedNotes) setSharedNotes(data.sharedNotes)
         } catch {}
       }
-      fetchList()
-      const id = setInterval(fetchList, 5000)
-      return () => { mounted = false; clearInterval(id) }
     }
-
-    return () => {
-      try { es?.close() } catch {}
+    // Handle additional non-typed event names produced by server (backwards-compat/more specific events)
+    const t = String((b as any).type)
+    if (t === 'noteToggledPin' || t === 'noteToggledArchive') {
+      const incoming = (b as any).payload ?? (b as any).note
+      if (isNoteSummary(incoming)) {
+        const note = incoming as NoteSummary
+        setNotes((prev) => prev.map(n => n.id === note.id ? { ...n, ...note } : n))
+        setSharedNotes((prev) => prev.map(n => n.id === note.id ? { ...n, ...note } : n))
+      }
     }
-  }, [])
+  })
 
   // Function to handle note deletion from client state
   const handleNoteDeleted = (deletedNoteId: string) => {

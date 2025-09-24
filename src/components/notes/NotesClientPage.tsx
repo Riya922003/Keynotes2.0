@@ -14,7 +14,6 @@ import { updateNoteOrder } from '@/app/actions/noteActions'
 // Note: drag-and-drop ordering has been removed from this component so sorting/searching can be handled client-side
 
 import { NoteSummary } from '@/types/note'
-import { unwrapEventPayload } from '@/lib/hooks/eventPayload'
 import useNoteUpdates from '@/lib/hooks/useNoteUpdates'
 
 interface NotesClientPageProps {
@@ -43,6 +42,8 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
   // Ensure client state is populated from server props on mount in case of hydration mismatch
   // We intentionally only want to run this on mount to sync server-provided lists once.
    
+  // Run only on mount to sync server-provided lists (intentional: do not add notes/sharedNotes)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if ((!notes || notes.length === 0) && initialNotes && initialNotes.length > 0) {
       setNotes(initialNotes)
@@ -152,7 +153,7 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
         break
       }
       case 'noteUpdated': {
-        const incoming = (b as any).payload ?? (b as any).note
+        const incoming = b.note ?? null
         if (isNoteSummary(incoming)) {
           const note = incoming as NoteSummary
           setNotes((prev) => prev.map(n => n.id === note.id ? { ...n, ...note } : n))
@@ -188,9 +189,9 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
       }
     }
     // Handle additional non-typed event names produced by server (backwards-compat/more specific events)
-    const t = String((b as any).type)
+    const t = String(b.type)
     if (t === 'noteToggledPin' || t === 'noteToggledArchive') {
-      const incoming = (b as any).payload ?? (b as any).note
+      const incoming = b.note ?? null
       if (isNoteSummary(incoming)) {
         const note = incoming as NoteSummary
         setNotes((prev) => prev.map(n => n.id === note.id ? { ...n, ...note } : n))

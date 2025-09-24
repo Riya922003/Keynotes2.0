@@ -11,7 +11,7 @@ export type NoteSummary = {
   is_pinned?: boolean | null
   is_archived?: boolean | null
   is_starred?: boolean | null
-  is_favorited?: boolean | null
+
   reminder_date?: string | Date | null
   reminder_repeat?: string | null
   position?: number | null

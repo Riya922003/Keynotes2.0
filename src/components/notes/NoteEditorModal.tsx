@@ -59,6 +59,7 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
   }, [])
 
   const handleTogglePin = async () => {
+  console.log('📌 Pin button clicked on the client!')
     if (!note) return
     
     try {

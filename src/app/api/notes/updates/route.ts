@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
     start(controller) {
       // Handler for published messages
       const handleMessage = (channel: string, message: string) => {
+        console.log('✅ SSE Endpoint: Received message from Redis:', message)
         try {
           controller.enqueue(`data: ${message}\n\n`)
         } catch {

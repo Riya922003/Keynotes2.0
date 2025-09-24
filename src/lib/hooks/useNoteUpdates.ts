@@ -13,10 +13,13 @@ export default function useNoteUpdates(onUpdate: (data: UpdatePayload) => void) 
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    const es = new EventSource('/api/notes/updates')
+  // Connect to the server SSE endpoint. The route lives under /api/realtime/notes
+  // (app/api/realtime/notes/route.ts) so use that path here.
+  const es = new EventSource('/api/realtime/notes')
     esRef.current = es
 
     const handler = (e: MessageEvent) => {
+      console.log('✅ Browser Hook: Received SSE message from server:', e.data)
       const raw: unknown = typeof e.data === 'string' ? e.data : JSON.stringify(e.data)
       const maybe = unwrapEventPayload(raw)
       if (maybe) return onUpdate(maybe)
@@ -33,7 +36,10 @@ export default function useNoteUpdates(onUpdate: (data: UpdatePayload) => void) 
       // Last resort: ignore unknown payloads — consumer may fetch full list
     }
 
-    es.addEventListener('message', handler)
+  // Server emits a custom event name 'notesUpdated' (see realtime rebroadcaster),
+  // so listen for that. Keep a fallback to 'message' for backward compatibility.
+  es.addEventListener('notesUpdated', handler as EventListener)
+  es.addEventListener('message', handler)
 
     es.addEventListener('error', () => {
       // EventSource will attempt reconnection automatically; log for debugging if needed

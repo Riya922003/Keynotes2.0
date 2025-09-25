@@ -43,15 +43,17 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
   // We intentionally only want to run this on mount to sync server-provided lists once.
    
   // Run only on mount to sync server-provided lists (intentional: do not add notes/sharedNotes)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const didSyncRef = useRef(false)
   useEffect(() => {
+    if (didSyncRef.current) return
+    didSyncRef.current = true
     if ((!notes || notes.length === 0) && initialNotes && initialNotes.length > 0) {
       setNotes(initialNotes)
     }
     if ((!sharedNotes || sharedNotes.length === 0) && initialShared && initialShared.length > 0) {
       setSharedNotes(initialShared)
     }
-  }, [initialNotes, initialShared])
+  }, [initialNotes, initialShared, notes, sharedNotes])
 
   // Centralized click outside logic
   useEffect(() => {

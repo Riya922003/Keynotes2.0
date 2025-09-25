@@ -116,11 +116,11 @@ export async function createNote(title?: string, content?: string, color?: strin
 }
 
 export async function updateNote(
-  noteId: string, 
-  title: string, 
-  content: string, 
-  color?: string | null, 
-  isPinned?: boolean, 
+  noteId: string,
+  title: string,
+  content: unknown,
+  color?: string | null,
+  isPinned?: boolean,
   isArchived?: boolean,
   reminderDate?: string,
   reminderRepeat?: string
@@ -132,16 +132,19 @@ export async function updateNote(
   }
 
   try {
-    // If content arrived as a JSON string (e.g. double-stringified), parse it so
-    // we always store a proper JS object into the JSONB column.
+    // Normalize incoming content into an object we can safely save.
+    let contentAsObject: unknown
     if (typeof content === 'string') {
       try {
-        content = JSON.parse(content)
+        contentAsObject = JSON.parse(content)
       } catch (parseErr) {
-        // If parsing fails, leave the raw string so we don't crash the update.
+        // If parsing fails, fall back to saving the raw string value so we don't crash the update.
         // Emit a warning to help diagnose malformed payloads.
         console.warn('updateNote: failed to JSON.parse(content) - saving raw string', parseErr)
+        contentAsObject = content
       }
+    } else {
+      contentAsObject = content
     }
 
     // Prepare the update object
@@ -156,7 +159,7 @@ export async function updateNote(
       reminder_repeat?: string | null
     } = {
       title,
-      content: content ?? null,
+      content: contentAsObject ?? null,
       updated_at: new Date(),
     }
 

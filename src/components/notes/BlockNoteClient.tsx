@@ -22,7 +22,7 @@ interface NoteEditorProps {
     workspace_id: string
   }
   titleColor?: string
-  onSaved?: (updates: { title?: string; content?: string }) => void
+  onSaved?: (updates: { title?: string; content?: unknown }) => void
   autoFocus?: boolean
   onEditorReady?: () => void
 }
@@ -77,6 +77,8 @@ export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus, 
 
   const [debouncedTitle] = useDebounce(title, 1000)
 
+  
+  
   const autoSave = useCallback(async (noteTitle: string, editorContent: Record<string, unknown>[]) => {
     const hasTitle = noteTitle.trim()
     const hasContent = editorContent && editorContent.length > 0 && 
@@ -87,12 +89,13 @@ export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus, 
     const originalTitle = note.title || ''
     const originalContent = note.content
 
-    if (noteTitle === originalTitle && JSON.stringify(editorContent) === JSON.stringify(originalContent)) return
+  // If nothing changed, skip saving. Keep deep-compare via stringify for simplicity.
+  if (noteTitle === originalTitle && JSON.stringify(editorContent) === JSON.stringify(originalContent)) return
 
     try {
-      const contentString = JSON.stringify(editorContent)
-      await updateNote(note.id, noteTitle, contentString)
-      onSaved?.({ title: noteTitle, content: contentString })
+  // Send the raw JS object to the server action (no JSON.stringify).
+  await updateNote(note.id, noteTitle, editorContent)
+  onSaved?.({ title: noteTitle, content: editorContent })
       try { (await import('@/lib/notesSync')).emitNotesUpdated() } catch {}
     } catch {
       // swallow save errors locally; higher-level sync will attempt again

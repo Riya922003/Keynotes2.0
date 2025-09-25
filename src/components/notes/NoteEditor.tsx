@@ -17,7 +17,7 @@ interface NoteEditorProps {
     workspace_id: string
   }
   titleColor?: string
-  onSaved?: (updates: { title?: string; content?: string }) => void
+  onSaved?: (updates: { title?: string; content?: unknown }) => void
   autoFocus?: boolean
   onEditorReady?: () => void
 }

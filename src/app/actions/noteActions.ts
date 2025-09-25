@@ -1,6 +1,13 @@
  'use server'
 
 import { eq, and, sql, desc, asc } from 'drizzle-orm'
+
+// Local helper: many Drizzle versions may export helpers from different paths.
+// To remain compatible, provide a small helper that returns the SQL fragment
+// `column IS NOT TRUE` using the existing `sql` tag.
+function isNotTrue(column: unknown) {
+  return sql`${column} IS NOT TRUE`
+}
 import { db } from '@/lib/db'
 import { documents } from '@/lib/db/schema/documents'
 import { document_collaborators } from '@/lib/db/schema/collaborators'
@@ -13,6 +20,7 @@ const NOTE_UPDATE_CHANNEL = 'note-updates'
 import { getServerSession } from 'next-auth'
 import { authOptions as topAuthOptions } from '@/lib/auth'
 import { NoteSummary } from '@/types/note'
+import type { EditorDocument } from '@/types/editor'
 
 // Reduce note objects sent over the wire to the minimal fields clients need
 function minimizeNote(note: unknown): NoteSummary | null {
@@ -21,7 +29,7 @@ function minimizeNote(note: unknown): NoteSummary | null {
   return {
     id: String(n.id ?? ''),
     title: (n.title as string) ?? null,
-    content: (n.content as unknown) ?? null,
+    content: (n.content as EditorDocument) ?? null,
     type: (n.type as 'note' | 'journal') ?? 'note',
     created_at: (n.created_at as string | Date) ?? null,
     updated_at: (n.updated_at as string | Date) ?? null,
@@ -69,7 +77,7 @@ async function getDefaultWorkspace(userId: string): Promise<string> {
 // Some server actions interact with Drizzle ORM and return DB row shapes that are verbose to type here.
 // Disable the explicit-any rule for these exports to keep code readable; we can tighten types later.
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export async function createNote(title?: string, content?: string, color?: string): Promise<any> {
+export async function createNote(title?: string, content?: EditorDocument | string, color?: string): Promise<any> {
   const session = await getServerSession(topAuthOptions)
   
   if (!session?.user?.id) {
@@ -118,7 +126,7 @@ export async function createNote(title?: string, content?: string, color?: strin
 export async function updateNote(
   noteId: string,
   title: string,
-  content: unknown,
+  content: EditorDocument | string | unknown,
   color?: string | null,
   isPinned?: boolean,
   isArchived?: boolean,
@@ -716,7 +724,7 @@ export async function getUserAndSharedNotes() {
     const ownedNotes = await db
       .select()
       .from(documents)
-      .where(and(eq(documents.author_id, session.user.id), sql`${documents.is_archived} IS NOT TRUE`, eq(documents.type, 'note')))
+      .where(and(eq(documents.author_id, session.user.id), isNotTrue(documents.is_archived), eq(documents.type, 'note')))
       .orderBy(asc(documents.position), desc(documents.updated_at))
 
     // Shared notes via document_collaborators — select document fields explicitly
@@ -741,7 +749,7 @@ export async function getUserAndSharedNotes() {
       })
       .from(document_collaborators)
       .leftJoin(documents, eq(document_collaborators.documentId, documents.id))
-      .where(and(eq(document_collaborators.userId, session.user.id), sql`${documents.is_archived} IS NOT TRUE`, eq(documents.type, 'note')))
+  .where(and(eq(document_collaborators.userId, session.user.id), isNotTrue(documents.is_archived), eq(documents.type, 'note')))
       .orderBy(desc(documents.updated_at))
 
     return { ownedNotes, sharedNotes }

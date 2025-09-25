@@ -8,13 +8,20 @@ import '@blocknote/core/fonts/inter.css'
 import '@blocknote/mantine/style.css'
 import '@/styles/blocknote-custom.css'
 import { updateNote } from '@/app/actions/noteActions'
+import type { EditorDocument } from '@/types/editor'
+// BlockNote types are complex; for our purposes narrow to the document shape
+type PartialBlock = {
+  type: string
+  content?: unknown
+}
 import { Input } from '@/components/ui/input'
+import type { ComponentProps } from 'react'
 
 interface NoteEditorProps {
   note: {
     id: string
     title: string | null
-    content: unknown
+  content: EditorDocument | string | null
     type: 'note' | 'journal'
     created_at: Date
     updated_at: Date
@@ -22,7 +29,7 @@ interface NoteEditorProps {
     workspace_id: string
   }
   titleColor?: string
-  onSaved?: (updates: { title?: string; content?: unknown }) => void
+  onSaved?: (updates: { title?: string; content?: EditorDocument | string | null }) => void
   autoFocus?: boolean
   onEditorReady?: () => void
 }
@@ -30,9 +37,9 @@ interface NoteEditorProps {
 export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus, onEditorReady }: NoteEditorProps) {
   const [title, setTitle] = useState(note.title || '')
 
-  const getInitialContent = () => {
+  const getInitialContent = (): PartialBlock[] | undefined => {
     if (note.content && typeof note.content === 'object') {
-      return note.content as Record<string, unknown>[]
+      return note.content as PartialBlock[]
     }
     if (typeof note.content === 'string' && note.content.trim()) {
       return [
@@ -45,10 +52,13 @@ export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus, 
     return undefined
   }
 
-  const editor = useCreateBlockNote({
-    initialContent: getInitialContent(),
+  // The BlockNote types are complex; cast via unknown then to the hook's param type to avoid explicit `any`.
+  const options = {
+    initialContent: getInitialContent() ?? undefined,
     placeholderText: "Type your note",
-  })
+  } as unknown
+
+  const editor = useCreateBlockNote(options as Parameters<typeof useCreateBlockNote>[0])
 
   // Notify parent when the editor instance is ready
   useEffect(() => {
@@ -79,10 +89,10 @@ export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus, 
 
   
   
-  const autoSave = useCallback(async (noteTitle: string, editorContent: Record<string, unknown>[]) => {
+  const autoSave = useCallback(async (noteTitle: string, editorContent: EditorDocument) => {
     const hasTitle = noteTitle.trim()
-    const hasContent = editorContent && editorContent.length > 0 && 
-      editorContent.some((block: Record<string, unknown>) => block.content && typeof block.content === 'string' && block.content.trim())
+  const hasContent = editorContent && editorContent.length > 0 && 
+  editorContent.some((block: PartialBlock) => block.content && typeof block.content === 'string' && String(block.content).trim())
 
     if (!hasTitle && !hasContent) return
 
@@ -137,7 +147,8 @@ export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus, 
       <div className="relative min-h-[150px] max-h-[350px] overflow-y-auto">
         <div className="[&_.bn-editor]:!border-none [&_.bn-editor]:!shadow-none [&_.bn-editor]:!outline-none [&_.bn-editor]:!bg-transparent [&_.bn-editor_.bn-block-outer]:!border-none [&_.bn-editor_.bn-block-content]:!border-none [&_.bn-side-menu]:!hidden [&_.bn-drag-handle]:!hidden">
           <BlockNoteView 
-            editor={editor} 
+            // editor's complex generic type can conflict with the library's view type; cast through unknown
+            editor={editor as unknown as ComponentProps<typeof BlockNoteView>['editor']}
             theme="light"
             className="min-h-[150px] !border-none !outline-none !shadow-none"
             sideMenu={false}

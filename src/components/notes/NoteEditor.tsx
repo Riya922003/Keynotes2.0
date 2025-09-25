@@ -1,6 +1,7 @@
 "use client"
 
 import React, { Suspense } from 'react'
+import type { EditorDocument } from '@/types/editor'
 import dynamic from 'next/dynamic'
 
 const BlockNoteClient = dynamic(() => import('./BlockNoteClient'), { ssr: false })
@@ -9,7 +10,7 @@ interface NoteEditorProps {
   note: {
     id: string
     title: string | null
-    content: unknown
+  content: EditorDocument | string | null
     type: 'note' | 'journal'
     created_at: Date
     updated_at: Date
@@ -17,7 +18,7 @@ interface NoteEditorProps {
     workspace_id: string
   }
   titleColor?: string
-  onSaved?: (updates: { title?: string; content?: unknown }) => void
+  onSaved?: (updates: { title?: string; content?: EditorDocument | string | null }) => void
   autoFocus?: boolean
   onEditorReady?: () => void
 }

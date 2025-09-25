@@ -18,23 +18,10 @@ import {
   Sparkles
 } from 'lucide-react'
 
+import type { NoteSummary } from '@/types/note'
+
 interface CreateNoteFormProps {
-  onNoteCreated?: (newNote: {
-    id: string
-    title: string | null
-    content: unknown
-    type: 'note' | 'journal'
-    created_at: Date
-    updated_at: Date
-    author_id: string
-    workspace_id: string
-    color?: string | null
-    is_pinned?: boolean | null
-    is_archived?: boolean | null
-    reminder_date?: Date | null
-    reminder_repeat?: string | null
-    position?: number | null
-  }) => void
+  onNoteCreated?: (newNote: NoteSummary) => void
 }
 
 export default function CreateNoteForm({ onNoteCreated }: CreateNoteFormProps) {

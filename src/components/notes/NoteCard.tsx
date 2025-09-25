@@ -232,14 +232,14 @@ export default function NoteCard({
       if (typeof note.content === 'object' && Array.isArray(note.content)) {
         // Extract text from BlockNote blocks
         const textContent = note.content
-          .map((block: Block) => {
+          .map((block: import('@/types/editor').EditorBlock) => {
             if (block.content) {
               if (typeof block.content === 'string') {
                 return block.content
               }
               if (Array.isArray(block.content)) {
                 return block.content
-                  .map((item: BlockContent) => item.text || '')
+                  .map((item: { text?: string }) => item.text || '')
                   .join('')
               }
             }
@@ -321,6 +321,18 @@ export default function NoteCard({
 
   // If editing, render a modal overlay using portal
   if (isEditing && typeof document !== 'undefined') {
+    const normalizeContent = (c: unknown) => {
+      if (!c) return null as null
+      if (typeof c === 'string') {
+        try {
+          const parsed = JSON.parse(c)
+          return parsed as import('@/types/editor').EditorDocument
+        } catch {
+          return c
+        }
+      }
+      return c as import('@/types/editor').EditorDocument
+    }
     return createPortal(
       <>
         {/* Modal backdrop */}
@@ -380,6 +392,7 @@ export default function NoteCard({
                   ...note,
                   created_at: toDateOrNull(note.created_at) || new Date(),
                   updated_at: toDateOrNull(note.updated_at) || new Date(),
+                  content: normalizeContent(note.content),
                 }}
                 titleColor={computedTitleColor}
                 autoFocus={autoFocus}

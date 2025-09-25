@@ -1,10 +1,11 @@
 import Redis from 'ioredis'
 
-const url = process.env.UPSTASH_REDIS_REST_URL
+const url = process.env.REDIS_URL
 
-// If the environment variable is not present (e.g., local dev or during build),
-// avoid throwing so the app can still build and run in environments without Redis.
-// Export `redis` as `Redis | null` so callers can guard accordingly.
-export const redis: Redis | null = url ? new Redis(url) : null
+if (!url) {
+  throw new Error('Missing REDIS_URL environment variable')
+}
+
+export const redis = new Redis(url, { tls: {} })
 
 export default redis

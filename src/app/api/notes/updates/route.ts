@@ -1,70 +1,36 @@
 import { NextRequest } from 'next/server'
-import Redis from 'ioredis'
-import { redis as sharedRedis } from '@/lib/redis'
+import { subscribe, unsubscribe } from '@/lib/realtime'
 
-const NOTE_UPDATE_CHANNEL = 'note-updates'
-
-function createSubscriber() {
-  const url = ((sharedRedis as unknown as { options?: { url?: string } })?.options?.url) || process.env.UPSTASH_REDIS_REST_URL
-  if (!url) {
-    // During build or in environments without Redis, return a noop-compatible subscriber
-    // The object implements the small subset of ioredis methods used in this route
-    const noop = {
-      subscribe: async () => {},
-      on: () => {},
-      off: () => {},
-      unsubscribe: async () => {},
-      quit: async () => {},
-    }
-
-    // Cast only because callers expect ioredis-like interface; the noop implements the used subset
-    return noop as unknown as Redis
-  }
-  return new Redis(url)
-}
-
+// SSE endpoint that uses the in-memory broadcaster. If deployed with a Redis
+// server that supports pub/sub and realtime rebroadcasting, cross-instance
+// events may be available; otherwise this provides single-instance SSE only.
 export async function GET(req: NextRequest) {
-  const subscriber = createSubscriber()
+  const url = new URL(req.url)
+  const userId = url.searchParams.get('userId') ?? undefined
 
-  const stream = new ReadableStream({
+  let controllerRef: ReadableStreamDefaultController<Uint8Array> | null = null
+  const stream = new ReadableStream<Uint8Array>({
     start(controller) {
-      // Handler for published messages
-      const handleMessage = (channel: string, message: string) => {
-        console.log('✅ SSE Endpoint: Received message from Redis:', message)
-        try {
-          controller.enqueue(`data: ${message}\n\n`)
-        } catch {
-          // ignore enqueue errors
-        }
+      controllerRef = controller
+      // Subscribe this controller for the optional userId or as a global listener
+      subscribe(userId ?? '__global__', controller)
+    },
+    cancel() {
+      if (controllerRef) {
+        try { unsubscribe(userId ?? '__global__', controllerRef) } catch {}
+        controllerRef = null
       }
-
-      // Subscribe and attach listener
-      subscriber.subscribe(NOTE_UPDATE_CHANNEL).then(() => {
-        // ioredis emits 'message' events for node-redis compatibility
-        subscriber.on('message', handleMessage)
-      }).catch((err: unknown) => {
-        // If subscribe fails, close stream
-        controller.error(err as Error)
-      })
-
-      // Cleanup when client disconnects
-      const onAbort = async () => {
-        try {
-          subscriber.off('message', handleMessage)
-          await subscriber.unsubscribe(NOTE_UPDATE_CHANNEL)
-          subscriber.quit()
-        } catch {
-          // ignore cleanup errors
-        }
-        controller.close()
-      }
-
-      req.signal.addEventListener('abort', onAbort)
     }
   })
 
-  const headers = new Headers({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' })
-  return new Response(stream, { status: 200, headers })
+  // When using the native Response streaming, ensure proper headers for SSE
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+    },
+  })
 }
 
 export const runtime = 'nodejs'

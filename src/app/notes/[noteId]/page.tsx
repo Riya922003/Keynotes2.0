@@ -5,6 +5,7 @@ import { db } from "@/lib/db"
 import { documents } from "@/lib/db/schema/documents"
 import { eq } from "drizzle-orm"
 import NoteEditor from "@/components/notes/NoteEditor"
+import type { EditorDocument } from '@/types/editor'
 
 interface NotePageProps {
   params: Promise<{
@@ -40,8 +41,9 @@ export default async function NotePage({ params }: NotePageProps) {
       redirect('/notes')
     }
 
-    // Render the note editor with the note data
-    return <NoteEditor note={note} />
+  // Normalize content shape to match NoteEditor prop types
+  const normalizedNote = { ...note, content: (note.content as EditorDocument | string | null) }
+  return <NoteEditor note={normalizedNote} />
   } catch (error) {
     console.error('Error fetching note:', error)
     redirect('/notes')

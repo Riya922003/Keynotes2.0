@@ -1,7 +1,9 @@
+import type { EditorDocument } from '@/types/editor'
+
 export type NoteSummary = {
   id: string
   title: string | null
-  content: unknown
+  content: string | EditorDocument | null
   type: 'note' | 'journal'
   created_at: string | Date | null
   updated_at: string | Date | null

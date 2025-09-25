@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import NoteEditor from './NoteEditor'
+import type { EditorDocument } from '@/types/editor'
 
 interface NoteEditorModalProps {
   note: {
@@ -172,7 +173,7 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
         <div className="flex-1 overflow-hidden">
           {note && (
             <NoteEditor
-              note={note}
+              note={{ ...note, content: (note.content as unknown) as EditorDocument | string | null }}
               onEditorReady={() => {
                 // small safety delay so the editor DOM can finish mounting and paint
                 if (readyTimerRef.current) clearTimeout(readyTimerRef.current)

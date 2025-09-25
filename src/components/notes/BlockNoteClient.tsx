@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from 'react'
-import { useDebounce } from 'use-debounce'
+import { useState, useEffect } from 'react'
+import { useDebouncedCallback } from 'use-debounce'
 import { useCreateBlockNote } from '@blocknote/react'
 import { BlockNoteView } from '@blocknote/mantine'
 import '@blocknote/core/fonts/inter.css'
@@ -21,7 +21,7 @@ interface NoteEditorProps {
   note: {
     id: string
     title: string | null
-  content: EditorDocument | string | null
+    content: EditorDocument | string | null
     type: 'note' | 'journal'
     created_at: Date
     updated_at: Date
@@ -52,10 +52,18 @@ export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus, 
     return undefined
   }
 
+  // Local content state for debouncing
+  const [content, setContent] = useState<EditorDocument | string | null>(() => {
+    const init = getInitialContent()
+    if (init) return init as unknown as EditorDocument
+    if (note.content) return note.content
+    return null
+  })
+
   // The BlockNote types are complex; cast via unknown then to the hook's param type to avoid explicit `any`.
   const options = {
     initialContent: getInitialContent() ?? undefined,
-    placeholderText: "Type your note",
+    placeholderText: 'Type your note',
   } as unknown
 
   const editor = useCreateBlockNote(options as Parameters<typeof useCreateBlockNote>[0])
@@ -64,16 +72,13 @@ export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus, 
   useEffect(() => {
     if (!editor) return
 
-    const calledRef = { current: false }
     let rafId: number | undefined
-
     const callReady = () => {
-      if (calledRef.current) return
-      calledRef.current = true
-      try { onEditorReady?.() } catch {}
+      try {
+        onEditorReady?.()
+      } catch {}
     }
 
-    // Defer signaling readiness until after the next paint so the editor DOM has a chance to mount
     if (typeof window !== 'undefined') {
       rafId = window.requestAnimationFrame(callReady)
     } else {
@@ -85,51 +90,67 @@ export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus, 
     }
   }, [editor, onEditorReady])
 
-  const [debouncedTitle] = useDebounce(title, 1000)
+  // Debounced save: only run updateNote after user has paused typing for 1500ms
+  const debouncedSave = useDebouncedCallback(
+    async (noteTitle: string, editorContent: EditorDocument | string | null) => {
+      const hasTitle = noteTitle.trim()
+      const hasContent =
+        editorContent &&
+        (Array.isArray(editorContent)
+          ? editorContent.length > 0 &&
+            editorContent.some((block: PartialBlock) => block.content && typeof block.content === 'string' && String(block.content).trim())
+          : Boolean(String(editorContent).trim()))
 
-  
-  
-  const autoSave = useCallback(async (noteTitle: string, editorContent: EditorDocument) => {
-    const hasTitle = noteTitle.trim()
-  const hasContent = editorContent && editorContent.length > 0 && 
-  editorContent.some((block: PartialBlock) => block.content && typeof block.content === 'string' && String(block.content).trim())
+      if (!hasTitle && !hasContent) return
 
-    if (!hasTitle && !hasContent) return
+      const originalTitle = note.title || ''
+      const originalContent = note.content
 
-    const originalTitle = note.title || ''
-    const originalContent = note.content
+      // If nothing changed, skip saving. Keep deep-compare via stringify for simplicity.
+      if (noteTitle === originalTitle && JSON.stringify(editorContent) === JSON.stringify(originalContent)) return
 
-  // If nothing changed, skip saving. Keep deep-compare via stringify for simplicity.
-  if (noteTitle === originalTitle && JSON.stringify(editorContent) === JSON.stringify(originalContent)) return
-
-    try {
-  // Send the raw JS object to the server action (no JSON.stringify).
-  await updateNote(note.id, noteTitle, editorContent)
-  onSaved?.({ title: noteTitle, content: editorContent })
-      try { (await import('@/lib/notesSync')).emitNotesUpdated() } catch {}
-    } catch {
-      // swallow save errors locally; higher-level sync will attempt again
-    }
-  }, [note.id, note.title, note.content, onSaved])
-
-  useEffect(() => {
-    if (editor) {
-      autoSave(debouncedTitle, editor.document)
-    }
-  }, [debouncedTitle, autoSave, editor])
-
-  useEffect(() => {
-    if (editor) {
-      const handleContentChange = () => {
-        setTimeout(() => {
-          autoSave(title, editor.document)
-        }, 1000)
+      try {
+        await updateNote(note.id, noteTitle, editorContent)
+        onSaved?.({ title: noteTitle, content: editorContent })
+        try {
+          ;(await import('@/lib/notesSync')).emitNotesUpdated()
+        } catch {}
+      } catch {
+        // swallow save errors locally; higher-level sync will attempt again
       }
+    },
+    1500,
+  )
 
-      editor.onEditorContentChange(handleContentChange)
-      return () => {}
+  // when editor becomes available, seed local content
+  useEffect(() => {
+    if (!editor) return
+    try {
+      setContent(editor.document as EditorDocument)
+    } catch {}
+  }, [editor])
+
+  // update local content on editor changes
+  useEffect(() => {
+    if (!editor) return
+
+    const handleContentChange = () => {
+      try {
+        setContent(editor.document as EditorDocument)
+      } catch {}
     }
-  }, [editor, title, autoSave])
+
+    editor.onEditorContentChange(handleContentChange)
+    return () => {
+      // no-op: editor doesn't expose unsubscribe here in the version we're using
+    }
+  }, [editor])
+
+  // run debounced save when title or content changes
+  useEffect(() => {
+    if (!editor) return
+    debouncedSave(title, content)
+  }, [title, content, debouncedSave, editor])
 
   return (
     <div className="flex flex-col w-full min-w-[300px] max-w-[500px]">
@@ -146,7 +167,7 @@ export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus, 
 
       <div className="relative min-h-[150px] max-h-[350px] overflow-y-auto">
         <div className="[&_.bn-editor]:!border-none [&_.bn-editor]:!shadow-none [&_.bn-editor]:!outline-none [&_.bn-editor]:!bg-transparent [&_.bn-editor_.bn-block-outer]:!border-none [&_.bn-editor_.bn-block-content]:!border-none [&_.bn-side-menu]:!hidden [&_.bn-drag-handle]:!hidden">
-          <BlockNoteView 
+          <BlockNoteView
             // editor's complex generic type can conflict with the library's view type; cast through unknown
             editor={editor as unknown as ComponentProps<typeof BlockNoteView>['editor']}
             theme="light"

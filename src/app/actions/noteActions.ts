@@ -112,7 +112,10 @@ export async function createNote(title?: string, content?: EditorDocument | stri
       broadcastNotesUpdated({ type: 'noteCreated', note: min }, recipients)
       try {
         if (redis) {
-          await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'noteCreated', note: min, recipients }))
+          const redisPayload = JSON.stringify({ type: 'noteCreated', note: min, recipients })
+          console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
+          await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
+          console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
         }
       } catch {}
     } catch {}
@@ -217,7 +220,10 @@ export async function updateNote(
       broadcastNotesUpdated({ type: 'noteUpdated', note: min }, recipients)
       try {
         if (redis) {
-          await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'noteUpdated', note: min, recipients }))
+          const redisPayload = JSON.stringify({ type: 'noteUpdated', note: min, recipients })
+          console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
+          await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
+          console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
         }
       } catch {}
     } catch {}
@@ -279,7 +285,10 @@ export async function deleteNote(noteId: string): Promise<any> {
       broadcastNotesUpdated({ type: 'noteDeleted', noteId: deletedId }, recipients)
       try {
         if (redis) {
-          await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'noteDeleted', noteId: deletedId, recipients }))
+          const redisPayload = JSON.stringify({ type: 'noteDeleted', noteId: deletedId, recipients })
+          console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
+          await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
+          console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
         }
       } catch {}
     } catch {}
@@ -327,7 +336,12 @@ export async function togglePinNote(noteId: string): Promise<any> {
     // Revalidate the notes page
       try {
         // notify cross-instance that a pin toggle occurred; publish the full updated note so clients can update state without refetch
-        if (redis) await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'noteToggledPin', payload: updatedNote[0], recipients: [session.user.id] }))
+        if (redis) {
+          const redisPayload = JSON.stringify({ type: 'noteToggledPin', payload: updatedNote[0], recipients: [session.user.id] })
+          console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
+          await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
+          console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
+        }
       } catch {}
     revalidatePath('/notes')
     
@@ -375,7 +389,12 @@ export async function toggleArchiveNote(noteId: string): Promise<any> {
     // Revalidate the notes page
     try {
       // Publish the full updated note for consumers to apply locally
-      if (redis) await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'noteToggledArchive', payload: updatedNote[0], recipients: [session.user.id] }))
+      if (redis) {
+        const redisPayload = JSON.stringify({ type: 'noteToggledArchive', payload: updatedNote[0], recipients: [session.user.id] })
+        console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
+        await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
+        console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
+      }
     } catch {}
     revalidatePath('/notes')
     
@@ -476,7 +495,12 @@ export async function updateNoteReminder(
     // Revalidate the notes page
       try {
         const min = minimizeNote(updatedNote[0])
-        if (redis) await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'noteReminderUpdated', note: min, recipients: [session.user.id] }))
+        if (redis) {
+          const redisPayload = JSON.stringify({ type: 'noteReminderUpdated', note: min, recipients: [session.user.id] })
+          console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
+          await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
+          console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
+        }
       } catch {}
     revalidatePath('/notes')
     
@@ -513,7 +537,12 @@ export async function removeNoteReminder(noteId: string) {
     // Revalidate the notes page
     try {
       const min = minimizeNote(updatedNote[0])
-      if (redis) await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'noteReminderRemoved', note: min, recipients: [session.user.id] }))
+      if (redis) {
+        const redisPayload = JSON.stringify({ type: 'noteReminderRemoved', note: min, recipients: [session.user.id] })
+        console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
+        await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
+        console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
+      }
     } catch {}
     revalidatePath('/notes')
     
@@ -554,7 +583,12 @@ export async function updateNoteOrder(notes: { id: string; position: number }[])
       try {
       const noteIds = notes.map((n: { id: string; position: number }) => n.id)
       // For ordering updates, broadcast a batch event with recipients = author only (we could expand to collaborators if necessary)
-      if (redis) await redis.publish(NOTE_UPDATE_CHANNEL, JSON.stringify({ type: 'notesReordered', noteIds, recipients: [session.user.id] }))
+      if (redis) {
+        const redisPayload = JSON.stringify({ type: 'notesReordered', noteIds, recipients: [session.user.id] })
+        console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
+        await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
+        console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
+      }
     } catch {}
     revalidatePath('/notes')
     

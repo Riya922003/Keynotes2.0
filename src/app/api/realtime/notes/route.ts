@@ -18,12 +18,13 @@ export async function GET(req: Request) {
     start(controller) {
       controllerRef = controller
       subscribe(userId, controller)
+      console.info(`[realtime route] client connected user=${userId}`)
       // Send initial comment to establish the stream
       controller.enqueue(new TextEncoder().encode(': connected\n\n'))
     },
     cancel() {
       if (controllerRef) {
-        try { unsubscribe(userId, controllerRef) } catch {}
+        try { unsubscribe(userId, controllerRef); console.info(`[realtime route] client disconnected (cancel) user=${userId}`) } catch {}
       }
     }
   })
@@ -31,7 +32,7 @@ export async function GET(req: Request) {
   // Ensure we unsubscribe when the client disconnects
   req.signal.addEventListener('abort', () => {
     if (controllerRef) {
-      try { unsubscribe(userId, controllerRef) } catch {}
+      try { unsubscribe(userId, controllerRef); console.info(`[realtime route] client disconnected (abort) user=${userId}`) } catch {}
     }
   })
 

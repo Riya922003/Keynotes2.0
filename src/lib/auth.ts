@@ -1,4 +1,6 @@
 import { AuthOptions } from 'next-auth'
+import { db } from '@/lib/db'
+import { users, accounts, sessions, verificationTokens } from '@/lib/db/schema'
 
 async function buildAuthOptions(): Promise<AuthOptions> {
   const GoogleProvider = (await import('next-auth/providers/google')).default
@@ -6,8 +8,9 @@ async function buildAuthOptions(): Promise<AuthOptions> {
   const { DrizzleAdapter } = await import('@auth/drizzle-adapter')
   const { compare } = await import('bcryptjs')
   const { eq } = await import('drizzle-orm')
-  const { db } = await import('@/lib/db')
-  const { users, accounts, sessions, verificationTokens } = await import('@/lib/db/schema')
+  // local db and schema are statically imported above to ensure the
+  // module-alias (@/) resolves correctly at runtime. Other packages
+  // are still dynamically imported below to keep them tree-shaken.
 
   const providers: AuthOptions['providers'] = []
 

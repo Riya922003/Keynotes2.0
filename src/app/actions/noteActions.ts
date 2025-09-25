@@ -14,7 +14,7 @@ import { document_collaborators } from '@/lib/db/schema/collaborators'
 import { workspaces } from '@/lib/db/schema/workspaces'
 import { revalidatePath } from 'next/cache'
 import { broadcastNotesUpdated } from '@/lib/realtime'
-import { redis } from '@/lib/redis'
+import { redis, publish as redisPublish } from '@/lib/redis'
 
 const NOTE_UPDATE_CHANNEL = 'note-updates'
 import { getServerSession } from 'next-auth'
@@ -114,10 +114,12 @@ export async function createNote(title?: string, content?: EditorDocument | stri
         if (redis) {
           const redisPayload = JSON.stringify({ type: 'noteCreated', note: min, recipients })
           console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
-          await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
+          await redisPublish(NOTE_UPDATE_CHANNEL, redisPayload)
           console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
         }
-      } catch {}
+      } catch (err) {
+        console.error('[redis] publish error (noteCreated)', err)
+      }
     } catch {}
     return newNote[0]
   } catch (error: unknown) {
@@ -222,10 +224,12 @@ export async function updateNote(
         if (redis) {
           const redisPayload = JSON.stringify({ type: 'noteUpdated', note: min, recipients })
           console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
-          await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
+          await redisPublish(NOTE_UPDATE_CHANNEL, redisPayload)
           console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
         }
-      } catch {}
+      } catch (err) {
+        console.error('[redis] publish error (noteUpdated)', err)
+      }
     } catch {}
     
     return updatedNote[0]
@@ -287,10 +291,12 @@ export async function deleteNote(noteId: string): Promise<any> {
         if (redis) {
           const redisPayload = JSON.stringify({ type: 'noteDeleted', noteId: deletedId, recipients })
           console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
-          await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
+          await redisPublish(NOTE_UPDATE_CHANNEL, redisPayload)
           console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
         }
-      } catch {}
+      } catch (err) {
+        console.error('[redis] publish error (noteDeleted)', err)
+      }
     } catch {}
     return { success: true, deletedNoteId: deletedNote[0].id }
     
@@ -339,10 +345,12 @@ export async function togglePinNote(noteId: string): Promise<any> {
         if (redis) {
           const redisPayload = JSON.stringify({ type: 'noteToggledPin', payload: updatedNote[0], recipients: [session.user.id] })
           console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
-          await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
+          await redisPublish(NOTE_UPDATE_CHANNEL, redisPayload)
           console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
         }
-      } catch {}
+      } catch (err) {
+        console.error('[redis] publish error (noteToggledPin)', err)
+      }
     revalidatePath('/notes')
     
     return updatedNote[0]
@@ -391,11 +399,13 @@ export async function toggleArchiveNote(noteId: string): Promise<any> {
       // Publish the full updated note for consumers to apply locally
       if (redis) {
         const redisPayload = JSON.stringify({ type: 'noteToggledArchive', payload: updatedNote[0], recipients: [session.user.id] })
-        console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
-        await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
-        console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
+  console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
+  await redisPublish(NOTE_UPDATE_CHANNEL, redisPayload)
+  console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
       }
-    } catch {}
+    } catch (err) {
+      console.error('[redis] publish error (noteToggledArchive)', err)
+    }
     revalidatePath('/notes')
     
     return updatedNote[0]
@@ -501,7 +511,9 @@ export async function updateNoteReminder(
           await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
           console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
         }
-      } catch {}
+      } catch (err) {
+        console.error('[redis] publish error (noteReminderUpdated)', err)
+      }
     revalidatePath('/notes')
     
     return updatedNote[0]
@@ -539,11 +551,13 @@ export async function removeNoteReminder(noteId: string) {
       const min = minimizeNote(updatedNote[0])
       if (redis) {
         const redisPayload = JSON.stringify({ type: 'noteReminderRemoved', note: min, recipients: [session.user.id] })
-        console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
-        await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
-        console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
+  console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
+  await redisPublish(NOTE_UPDATE_CHANNEL, redisPayload)
+  console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
       }
-    } catch {}
+    } catch (err) {
+      console.error('[redis] publish error (noteReminderRemoved)', err)
+    }
     revalidatePath('/notes')
     
     return updatedNote[0]
@@ -585,11 +599,13 @@ export async function updateNoteOrder(notes: { id: string; position: number }[])
       // For ordering updates, broadcast a batch event with recipients = author only (we could expand to collaborators if necessary)
       if (redis) {
         const redisPayload = JSON.stringify({ type: 'notesReordered', noteIds, recipients: [session.user.id] })
-        console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
-        await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
-        console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
+  console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
+  await redisPublish(NOTE_UPDATE_CHANNEL, redisPayload)
+  console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
       }
-    } catch {}
+    } catch (err) {
+      console.error('[redis] publish error (notesReordered)', err)
+    }
     revalidatePath('/notes')
     
     // Only throw if all updates failed

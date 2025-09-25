@@ -10,6 +10,7 @@ function ensureSet(userId: string) {
 
 export function subscribe(userId: string, controller: ReadableStreamDefaultController<Uint8Array>) {
   ensureSet(userId).add(controller)
+  console.info(`[realtime] subscribe: user=${userId} connections=${ensureSet(userId).size}`)
 }
 
 export function unsubscribe(userId: string, controller: ReadableStreamDefaultController<Uint8Array>) {
@@ -17,6 +18,7 @@ export function unsubscribe(userId: string, controller: ReadableStreamDefaultCon
   if (!s) return
   s.delete(controller)
   if (s.size === 0) userControllers.delete(userId)
+  console.info(`[realtime] unsubscribe: user=${userId} remaining=${userControllers.get(userId)?.size ?? 0}`)
 }
 
 function formatSSE(event: string, data: unknown) {
@@ -28,22 +30,29 @@ function formatSSE(event: string, data: unknown) {
 export function broadcastNotesUpdated(payload: unknown = { type: 'notesUpdated', ts: Date.now() }, recipients?: string[]) {
   const chunk = formatSSE('notesUpdated', payload)
 
+  console.debug('[realtime] broadcastNotesUpdated', { payload, recipientsCount: recipients?.length ?? 0 })
+
   if (!recipients || recipients.length === 0) {
     // broadcast to all
-    for (const [, controllers] of userControllers) {
+    for (const [uid, controllers] of userControllers) {
       for (const controller of Array.from(controllers)) {
         try { controller.enqueue(chunk) } catch { controllers.delete(controller) }
       }
+      console.debug(`[realtime] broadcast -> user=${uid} connections=${controllers.size}`)
     }
     return
   }
 
   for (const uid of recipients) {
     const controllers = userControllers.get(uid)
-    if (!controllers) continue
+    if (!controllers) {
+      console.debug(`[realtime] no local controllers for user=${uid}`)
+      continue
+    }
     for (const controller of Array.from(controllers)) {
       try { controller.enqueue(chunk) } catch { controllers.delete(controller) }
     }
+    console.debug(`[realtime] broadcast -> user=${uid} connections=${controllers.size}`)
   }
 }
 

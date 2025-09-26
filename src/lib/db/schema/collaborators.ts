@@ -15,3 +15,5 @@ export const document_collaborators = pgTable('document_collaborators', {
 
 export type DocumentCollaborator = typeof document_collaborators.$inferSelect;
 export type NewDocumentCollaborator = typeof document_collaborators.$inferInsert;
+
+// Indexes removed from schema file; create a database migration instead if needed.

@@ -25,3 +25,5 @@ export const documents = pgTable('documents', {
 
 export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
+
+// Indexes removed from schema file; add via migration (drizzle-kit) if desired.

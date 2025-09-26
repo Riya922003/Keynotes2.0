@@ -143,7 +143,7 @@ export default function CreateNoteForm({ onNoteCreated }: CreateNoteFormProps) {
     return (
       <div
         onClick={handlePlaceholderClick}
-        className="w-full max-w-2xl mx-auto p-4 rounded-lg bg-background hover:bg-accent/50 cursor-text transition-colors duration-200 shadow-sm"
+        className="w-full max-w-2xl mx-auto p-4 rounded-lg bg-accent/50 cursor-text transition-colors duration-200 shadow-sm"
       >
         <div className="text-muted-foreground">
           Take a note...

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import SearchBar from '@/components/search/SearchBar'
 import { getSidebarCounts } from '@/app/actions/noteActions'
 import { onNotesUpdated } from '@/lib/notesSync'
-import { ChevronsLeft, FileText, Share, Settings, Archive, Star, Users, Wrench } from 'lucide-react'
+import { ChevronsLeft, FileText, Share, Settings, Archive, Star, Users, Wrench, Home } from 'lucide-react'
 
 interface NavigationProps {
   children: React.ReactNode
@@ -108,8 +108,13 @@ export default function Navigation({ children }: NavigationProps) {
 
   // Toggle collapsed state
   const toggleCollapsed = () => {
-    setIsCollapsed(!isCollapsed)
+    const newState = !isCollapsed
+    setIsCollapsed(newState)
     setIsHovering(false)
+    // When closing the sidebar, clear any active search so notes return to normal
+    if (newState) {
+      try { updateQuery('') } catch {}
+    }
   }
 
   // Determine if sidebar should be expanded
@@ -154,17 +159,29 @@ export default function Navigation({ children }: NavigationProps) {
         onMouseLeave={handleMouseLeave}
       >
         {/* Collapse Button - moved to top without header section */}
-        <div className="flex justify-end p-2 border-b border-border">
-          <button
-            onClick={toggleCollapsed}
-            className={`
-              p-2 rounded-lg hover:bg-accent transition-all duration-200
-              ${isCollapsed ? 'rotate-180' : 'rotate-0'}
-            `}
-            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            <ChevronsLeft className="h-4 w-4 text-muted-foreground" />
-          </button>
+        <div className="flex items-center justify-between p-2 border-b border-border">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="p-2 rounded-lg hover:bg-accent transition-all duration-200"
+              aria-label="Go to dashboard"
+              title="Dashboard"
+            >
+              <Home className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
+          <div>
+            <button
+              onClick={toggleCollapsed}
+              className={`
+                p-2 rounded-lg hover:bg-accent transition-all duration-200
+                ${isCollapsed ? 'rotate-180' : 'rotate-0'}
+              `}
+              aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              <ChevronsLeft className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
         </div>
 
         {/* Navigation Content */}

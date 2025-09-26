@@ -93,6 +93,7 @@ export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus, 
   // Debounced save: only run updateNote after user has paused typing for 1500ms
   const debouncedSave = useDebouncedCallback(
     async (noteTitle: string, editorContent: EditorDocument | string | null) => {
+      console.log('Attempting to save note update...')
       const hasTitle = noteTitle.trim()
       const hasContent =
         editorContent &&

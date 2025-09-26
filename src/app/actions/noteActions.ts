@@ -14,7 +14,7 @@ import { document_collaborators } from '@/lib/db/schema/collaborators'
 import { workspaces } from '@/lib/db/schema/workspaces'
 import { revalidatePath } from 'next/cache'
 import { broadcastNotesUpdated } from '@/lib/realtime'
-import { redis, publish as redisPublish } from '@/lib/redis'
+import { redis } from '@/lib/redis'
 
 const NOTE_UPDATE_CHANNEL = 'note-updates'
 import { getServerSession } from 'next-auth'
@@ -114,7 +114,7 @@ export async function createNote(title?: string, content?: EditorDocument | stri
         if (redis) {
           const redisPayload = JSON.stringify({ type: 'noteCreated', note: min, recipients })
           console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
-          await redisPublish(NOTE_UPDATE_CHANNEL, redisPayload)
+          await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
           console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
         }
       } catch (err) {
@@ -224,7 +224,7 @@ export async function updateNote(
         if (redis) {
           const redisPayload = JSON.stringify({ type: 'noteUpdated', note: min, recipients })
           console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
-          await redisPublish(NOTE_UPDATE_CHANNEL, redisPayload)
+          await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
           console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
         }
       } catch (err) {
@@ -291,7 +291,7 @@ export async function deleteNote(noteId: string): Promise<any> {
         if (redis) {
           const redisPayload = JSON.stringify({ type: 'noteDeleted', noteId: deletedId, recipients })
           console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
-          await redisPublish(NOTE_UPDATE_CHANNEL, redisPayload)
+          await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
           console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
         }
       } catch (err) {
@@ -345,7 +345,7 @@ export async function togglePinNote(noteId: string): Promise<any> {
         if (redis) {
           const redisPayload = JSON.stringify({ type: 'noteToggledPin', payload: updatedNote[0], recipients: [session.user.id] })
           console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
-          await redisPublish(NOTE_UPDATE_CHANNEL, redisPayload)
+          await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
           console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
         }
       } catch (err) {
@@ -400,7 +400,7 @@ export async function toggleArchiveNote(noteId: string): Promise<any> {
       if (redis) {
         const redisPayload = JSON.stringify({ type: 'noteToggledArchive', payload: updatedNote[0], recipients: [session.user.id] })
   console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
-  await redisPublish(NOTE_UPDATE_CHANNEL, redisPayload)
+  await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
   console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
       }
     } catch (err) {
@@ -552,7 +552,7 @@ export async function removeNoteReminder(noteId: string) {
       if (redis) {
         const redisPayload = JSON.stringify({ type: 'noteReminderRemoved', note: min, recipients: [session.user.id] })
   console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
-  await redisPublish(NOTE_UPDATE_CHANNEL, redisPayload)
+  await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
   console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
       }
     } catch (err) {
@@ -600,7 +600,7 @@ export async function updateNoteOrder(notes: { id: string; position: number }[])
       if (redis) {
         const redisPayload = JSON.stringify({ type: 'notesReordered', noteIds, recipients: [session.user.id] })
   console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
-  await redisPublish(NOTE_UPDATE_CHANNEL, redisPayload)
+  await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
   console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
       }
     } catch (err) {

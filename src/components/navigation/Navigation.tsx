@@ -1,6 +1,8 @@
  'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import SearchBar from '@/components/search/SearchBar'
 import { getSidebarCounts } from '@/app/actions/noteActions'
 import { onNotesUpdated } from '@/lib/notesSync'
 import { ChevronsLeft, FileText, Share, Settings, Archive, Star, Users, Wrench } from 'lucide-react'
@@ -16,6 +18,23 @@ export default function Navigation({ children }: NavigationProps) {
   
   // Check if it's mobile view (you can install a useMediaQuery hook or use this simple version)
   const [isMobile, setIsMobile] = useState(false)
+
+  // Router + search state for sidebar search input
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [searchValue, setSearchValue] = useState<string>(searchParams?.get('q') ?? '')
+
+  // Keep URL in sync when searchValue changes
+  const updateQuery = (q: string) => {
+    try {
+      const params = new URLSearchParams(searchParams?.toString() || '')
+      if (q) params.set('q', q)
+      else params.delete('q')
+      const url = `${typeof window !== 'undefined' ? window.location.pathname : '/notes'}?${params.toString()}`
+      router.replace(url)
+      setSearchValue(q)
+    } catch {}
+  }
 
   // Fetch counts from server action
   const fetchCounts = async () => {
@@ -150,7 +169,14 @@ export default function Navigation({ children }: NavigationProps) {
 
         {/* Navigation Content */}
         <div className="flex-1 overflow-y-auto p-2 space-y-6">
-          {/* Search removed from tools */}
+          {/* Sidebar Search (syncs q param so pages can react) */}
+          <div className={`px-2 transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
+            {isExpanded && (
+              <div className="mb-2">
+                <SearchBar value={searchValue} onChangeAction={(v) => updateQuery(v)} />
+              </div>
+            )}
+          </div>
           {/* Private Section */}
           <div>
             <div className={`px-2 mb-3 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>

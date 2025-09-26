@@ -366,6 +366,11 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
     return { pinned, matches, rest, combined: combinedNotes, all: combinedNotes }
   }, [notes, searchQuery])
 
+  // Named groupings used in the JSX: pinnedNotes, searchResults (only when searching), otherNotes
+  const pinnedNotes = grouped.pinned || []
+  const searchResults = grouped.matches || []
+  const otherNotes = grouped.rest || []
+
   // Drag end - only allow reordering within the same group (pinned vs unpinned)
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
@@ -452,13 +457,13 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
                     {searchQuery ? (
                       // Searching: show only notes that actually match the query
                       <div>
-                        <h3 className="px-2 text-xs text-muted-foreground">Results</h3>
-                        {(!grouped.matches || grouped.matches.length === 0) ? (
+                        <h3 className="px-2 text-xs text-muted-foreground">Search Results</h3>
+                        {searchResults.length === 0 ? (
                           <div className="px-2 py-6 text-sm text-muted-foreground">No results</div>
                         ) : (
-                          <SortableContext items={(grouped.matches || []).map(n => n.id)} strategy={rectSortingStrategy}>
+                          <SortableContext items={searchResults.map(n => n.id)} strategy={rectSortingStrategy}>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                              {(grouped.matches || []).map(n => (
+                              {searchResults.map(n => (
                                 <div key={n.id} data-note-id={n.id}>
                                   <NoteCard
                                     note={n}
@@ -479,12 +484,12 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
                     ) : (
                       // Not searching: show pinned then other notes
                       <div>
-                        {grouped.pinned.length > 0 && (
+                        {pinnedNotes.length > 0 && (
                           <section className="mb-6">
                             <h3 className="px-2 text-xs text-muted-foreground">Pinned</h3>
-                            <SortableContext items={grouped.pinned.map(n => n.id)} strategy={rectSortingStrategy}>
+                            <SortableContext items={pinnedNotes.map(n => n.id)} strategy={rectSortingStrategy}>
                               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                                {grouped.pinned.map(n => (
+                                {pinnedNotes.map(n => (
                                   <div key={n.id} data-note-id={n.id}>
                                     <NoteCard
                                       note={n}
@@ -503,12 +508,12 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
                           </section>
                         )}
 
-                        {grouped.rest.length > 0 && (
+                        {otherNotes.length > 0 && (
                           <section>
-                            <h3 className="px-2 text-sm font-medium text-muted-foreground">All notes</h3>
-                            <SortableContext items={grouped.rest.map(n => n.id)} strategy={rectSortingStrategy}>
+                            <h3 className="px-2 text-sm font-medium text-muted-foreground">Other Notes</h3>
+                            <SortableContext items={otherNotes.map(n => n.id)} strategy={rectSortingStrategy}>
                               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                                {grouped.rest.map(n => (
+                                {otherNotes.map(n => (
                                   <div key={n.id} data-note-id={n.id}>
                                     <NoteCard
                                       note={n}

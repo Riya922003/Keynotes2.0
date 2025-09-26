@@ -1,97 +1,63 @@
 "use client"
 
-import React from "react"
-import { useRouter, usePathname, useSearchParams } from "next/navigation"
-import { useDebouncedCallback } from "use-debounce"
-import { Search, X } from "lucide-react"
-import { Input } from "@/components/ui/input"
+import React, { useEffect, useRef } from 'react'
+import { Input } from '@/components/ui/input'
+import { Search, X } from 'lucide-react'
 
-type Props = React.ComponentProps<typeof Input> & {
-  className?: string
-  value?: string
-  onChange?: (value: string) => void
+interface SearchBarProps {
+  value: string
+  onChangeAction: (value: string) => void
 }
 
-export default function SearchBar({ className, value, onChange, ...props }: Props) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
+export default function SearchBar({ value, onChangeAction }: SearchBarProps) {
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
-  // current q param if present
-  const currentQ = searchParams?.get("q") ?? ""
-
-  // internal state when uncontrolled
-  const [internal, setInternal] = React.useState<string>(value ?? currentQ)
-  const inputRef = React.useRef<HTMLInputElement | null>(null)
-
-  // keep internal synced if value prop changes
-  React.useEffect(() => {
-    if (typeof value === 'string') setInternal(value)
-  }, [value])
-
-  const updateQuery = React.useCallback(
-    (q: string) => {
-      const params = new URLSearchParams(searchParams?.toString() || '')
-      if (q) {
-        params.set("q", q)
-      } else {
-        params.delete("q")
-      }
-
-      const url = `${pathname}?${params.toString()}`
-      router.replace(url)
-    },
-    [router, pathname, searchParams]
-  )
-
-  const debounced = useDebouncedCallback((val: string) => {
-    if (onChange) {
-      onChange(val)
-    } else {
-      updateQuery(val)
+  // Keyboard shortcut: press '/' to focus the search input (when not typing in an input)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Ignore modifier keys and when target is editable
+      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      const tag = target.tagName?.toLowerCase()
+      if (tag === 'input' || tag === 'textarea' || target.isContentEditable) return
+      try {
+        inputRef.current?.focus()
+        e.preventDefault()
+      } catch {}
     }
-  }, 300)
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = e.target.value
-    setInternal(v)
-    debounced(v)
-  }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   const clear = () => {
-    setInternal('')
-    if (onChange) onChange('')
-    else updateQuery('')
+    onChangeAction('')
     try { inputRef.current?.focus() } catch {}
   }
 
   return (
-    <div className={className}>
-      <div className="relative flex items-center">
-        <span className="absolute left-3 pointer-events-none">
-          <Search className="h-4 w-4 text-muted-foreground" />
-        </span>
-        <Input
-          ref={inputRef}
-          value={typeof value === 'string' ? value : internal}
-          onChange={handleChange}
-          className="pl-9 pr-9"
-          placeholder="Search notes..."
-          aria-label="Search"
-          {...props}
-        />
-        {/* Clear button appears when there's text */}
-        {(typeof value === 'string' ? value : internal) && (
-          <button
-            onClick={clear}
-            aria-label="Clear search"
-            className="absolute right-2 inline-flex items-center justify-center w-7 h-7 rounded hover:bg-muted"
-            type="button"
-          >
-            <X className="w-4 h-4 text-muted-foreground" />
-          </button>
-        )}
-      </div>
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      <Input
+        ref={inputRef}
+        value={value}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChangeAction(e.target.value)}
+        placeholder="Search..."
+        className="pl-10 pr-9"
+        aria-label="Search"
+      />
+
+      {/* Clear button */}
+      {value && (
+        <button
+          type="button"
+          onClick={clear}
+          aria-label="Clear search"
+          className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-7 h-7 rounded hover:bg-muted"
+        >
+          <X className="w-4 h-4 text-muted-foreground" />
+        </button>
+      )}
     </div>
   )
 }

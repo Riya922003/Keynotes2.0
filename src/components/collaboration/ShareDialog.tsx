@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
 import { getCollaborators, inviteUserToNote, getUserById, removeCollaborator } from '@/app/actions/collaborationActions'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Edit, Eye } from 'lucide-react'
 import Skeleton from '@/components/ui/skeleton'
 
 interface ShareDialogProps {
@@ -157,34 +157,50 @@ export default function ShareDialog({ documentId, authorId, open, onOpenChangeAc
 
                     {/* Delete button - don't show for the owner */}
                     {c.id !== authorId && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={`h-8 w-8 p-0 hover:bg-red-100 rounded-full transition-colors ${removingIds.includes(c.id) ? 'text-red-600 bg-red-100' : 'hover:text-red-600'}`}
-                        title="Remove collaborator"
-                        onClick={async (e) => {
-                          e.stopPropagation()
-                          if (removingIds.includes(c.id)) return
-                          setRemovingIds((s) => [...s, c.id])
-                          try {
-                            const res = await removeCollaborator(documentId, c.id)
-                            if ((res as { error?: string }).error) {
-                              toast({ title: 'Remove failed', description: (res as { error?: string }).error, variant: 'destructive' })
-                            } else {
-                              // optimistic client update
-                              setCollaborators((rows) => rows.filter((r) => r.id !== c.id))
-                              toast({ title: 'Removed', description: 'Collaborator removed.' })
+                      <div className="flex items-center gap-2">
+                        {/* Role badge for clarity */}
+                        <span
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-full"
+                          title={c.role === 'editor' ? 'Editor — can edit document' : 'Viewer — view-only access'}
+                          aria-label={`Role: ${c.role === 'editor' ? 'Editor' : 'Viewer'}`}
+                        >
+                          {c.role === 'editor' ? (
+                            <Edit className="w-4 h-4 text-white bg-blue-600 rounded-full p-0.5" />
+                          ) : (
+                            <Eye className="w-4 h-4 text-muted-foreground bg-muted/30 rounded-full p-0.5" />
+                          )}
+                          <span className="sr-only">{c.role === 'editor' ? 'Editor' : 'Viewer'}</span>
+                        </span>
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={`h-8 w-8 p-0 hover:bg-red-100 rounded-full transition-colors ${removingIds.includes(c.id) ? 'text-red-600 bg-red-100' : 'hover:text-red-600'}`}
+                          title="Remove collaborator"
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            if (removingIds.includes(c.id)) return
+                            setRemovingIds((s) => [...s, c.id])
+                            try {
+                              const res = await removeCollaborator(documentId, c.id)
+                              if ((res as { error?: string }).error) {
+                                toast({ title: 'Remove failed', description: (res as { error?: string }).error, variant: 'destructive' })
+                              } else {
+                                // optimistic client update
+                                setCollaborators((rows) => rows.filter((r) => r.id !== c.id))
+                                toast({ title: 'Removed', description: 'Collaborator removed.' })
+                              }
+                            } catch {
+                              toast({ title: 'Remove failed', description: 'Something went wrong', variant: 'destructive' })
+                            } finally {
+                              setRemovingIds((s) => s.filter((id) => id !== c.id))
                             }
-                          } catch {
-                            toast({ title: 'Remove failed', description: 'Something went wrong', variant: 'destructive' })
-                          } finally {
-                            setRemovingIds((s) => s.filter((id) => id !== c.id))
-                          }
-                        }}
-                        aria-label={`Remove ${c.email || c.name}`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                          }}
+                          aria-label={`Remove ${c.email || c.name}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     )}
                   </div>
                 ))

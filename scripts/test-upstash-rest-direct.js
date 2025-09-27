@@ -30,7 +30,7 @@
     try {
       const json = JSON.parse(text)
       console.log('[direct-rest] result=', json.result)
-    } catch (e) {
+    } catch {
       // ignore
     }
   } catch (err) {

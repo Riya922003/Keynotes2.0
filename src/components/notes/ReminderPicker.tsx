@@ -11,11 +11,11 @@ interface ReminderPickerProps {
     date?: Date | null
     repeat?: string | null
   }
-  onReminderSet: (reminder: { date: Date | null, repeat: string | null }) => void
-  onClose: () => void
+  onReminderSetAction: (reminder: { date: Date | null, repeat: string | null }) => void
+  onCloseAction: () => void
 }
 
-export default function ReminderPicker({ noteId, currentReminder, onReminderSet, onClose }: ReminderPickerProps) {
+export default function ReminderPicker({ noteId, currentReminder, onReminderSetAction, onCloseAction }: ReminderPickerProps) {
   const [showDateTimePicker, setShowDateTimePicker] = useState(false)
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedTime, setSelectedTime] = useState('20:00')
@@ -84,8 +84,8 @@ export default function ReminderPicker({ noteId, currentReminder, onReminderSet,
       
       // Create the date object to pass to callback
       const reminderDate = new Date(`${date}T${time}:00`)
-      onReminderSet({ date: reminderDate, repeat: null })
-      onClose()
+  onReminderSetAction({ date: reminderDate, repeat: null })
+  onCloseAction()
     } catch (error) {
       console.error('Failed to set reminder:', error)
     } finally {
@@ -111,8 +111,8 @@ export default function ReminderPicker({ noteId, currentReminder, onReminderSet,
       // Create the date object to pass to callback
       const reminderDate = new Date(`${selectedDate}T${selectedTime}:00`)
       const reminderRepeat = selectedRepeat !== 'Doesn\'t repeat' ? selectedRepeat : null
-      onReminderSet({ date: reminderDate, repeat: reminderRepeat })
-      onClose()
+  onReminderSetAction({ date: reminderDate, repeat: reminderRepeat })
+  onCloseAction()
     } catch (error) {
       console.error('Failed to set custom reminder:', error)
     } finally {
@@ -124,8 +124,8 @@ export default function ReminderPicker({ noteId, currentReminder, onReminderSet,
     setIsLoading(true)
     try {
       await updateNoteReminder(noteId, undefined, undefined, undefined)
-      onReminderSet({ date: null, repeat: null })
-      onClose()
+  onReminderSetAction({ date: null, repeat: null })
+  onCloseAction()
     } catch (error) {
       console.error('Failed to remove reminder:', error)
     } finally {
@@ -288,7 +288,7 @@ export default function ReminderPicker({ noteId, currentReminder, onReminderSet,
 
   return (
     <div 
-      className="absolute bottom-full mb-2 -right-2 bg-background border rounded-lg shadow-lg p-2 z-[10000] min-w-[180px] reminder-picker-dropdown"
+      className="absolute bottom-full mb-2 -right-12 bg-background border rounded-lg shadow-lg p-2 z-[11000] min-w-[180px] reminder-picker-dropdown"
       onClick={(e) => e.stopPropagation()}
     >
       <div className="flex flex-col gap-1">

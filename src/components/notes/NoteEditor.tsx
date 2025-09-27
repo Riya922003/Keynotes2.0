@@ -21,6 +21,7 @@ interface NoteEditorProps {
   onSaved?: (updates: { title?: string; content?: EditorDocument | string | null }) => void
   autoFocus?: boolean
   onEditorReady?: () => void
+  readOnly?: boolean
 }
 
 export default function NoteEditor(props: NoteEditorProps) {

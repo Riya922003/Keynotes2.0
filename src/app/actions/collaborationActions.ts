@@ -10,11 +10,16 @@ import { authOptions as topAuthOptions } from '@/lib/auth'
 import { documents } from '@/lib/db/schema/documents'
 
 // Server-only action to invite a user to collaborate on a note/document
-export async function inviteUserToNote(documentId: string, inviteeEmail: string) {
+export async function inviteUserToNote(documentId: string, inviteeEmail: string, role: 'editor' | 'viewer') {
   // Require authentication and that caller is the document owner
   const session = await getServerSession(topAuthOptions)
   if (!session?.user?.id) {
     return { error: 'Authentication required.' }
+  }
+
+  // Validate role at runtime to prevent invalid values from being inserted
+  if (role !== 'editor' && role !== 'viewer') {
+    return { error: 'Invalid role. Must be "editor" or "viewer".' }
   }
 
   // verify document exists and caller is owner
@@ -45,8 +50,8 @@ export async function inviteUserToNote(documentId: string, inviteeEmail: string)
     return { error: 'User is already a collaborator.' };
   }
 
-  // Insert collaborator with role 'editor' by default
-  await db.insert(document_collaborators).values({ documentId, userId: user.id, role: 'editor' });
+  // Insert collaborator with provided role
+  await db.insert(document_collaborators).values({ documentId, userId: user.id, role });
 
   // Revalidate the note page so incremental static regeneration updates
   try {
@@ -90,6 +95,34 @@ export async function getUserById(userId: string) {
   } catch {
       // swallow DB lookup errors and return null so UI falls back to id
     return null
+  }
+}
+
+// Return the current user's role for a given document
+export async function getUserRoleForDocument(documentId: string) {
+  const session = await getServerSession(topAuthOptions)
+  if (!session?.user?.id) return { role: null }
+
+  // Check ownership first
+  try {
+    const doc = await db.select({ id: documents.id, author_id: documents.author_id }).from(documents).where(eq(documents.id, documentId)).limit(1)
+    if (doc.length > 0 && doc[0].author_id === session.user.id) {
+      return { role: 'owner' }
+    }
+  } catch {}
+
+  // Otherwise find collaborator entry
+  try {
+    const rows = await db
+      .select({ role: document_collaborators.role })
+      .from(document_collaborators)
+      .where(and(eq(document_collaborators.documentId, documentId), eq(document_collaborators.userId, session.user.id)))
+      .limit(1)
+
+    if (rows.length === 0) return { role: null }
+    return { role: rows[0].role }
+  } catch {
+    return { role: null }
   }
 }
 

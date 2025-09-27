@@ -1,6 +1,13 @@
 // Quick test script to publish a message to the configured REDIS_URL
 // Loads .env automatically via node -r dotenv/config
-const Redis = require('ioredis');
+let Redis
+try {
+  const imp = await import('ioredis')
+  Redis = imp && (imp.default ?? imp)
+} catch (err) {
+  console.error('ioredis is not available; install or set REDIS_URL to use TCP publish', err?.message)
+  process.exit(2)
+}
 
 if (!process.env.REDIS_URL) {
   console.error('Missing REDIS_URL in env');
@@ -29,7 +36,7 @@ client.on('close', () => console.log('[test] redis close'));
     const res = await client.publish(channel, payload)
     console.log('[test] publish result:', res)
   } catch (err) {
-    console.error('[test] publish failed', err)
+    console.error('[test] publish failed', err?.message ?? err)
   } finally {
     client.disconnect()
   }

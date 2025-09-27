@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
@@ -14,7 +15,7 @@ interface ShareDialogProps {
   documentId: string
   authorId: string
   open: boolean
-  onOpenChange: (open: boolean) => void
+  onOpenChangeAction: (open: boolean) => void
 }
 
 type Collaborator = {
@@ -25,11 +26,14 @@ type Collaborator = {
   role?: 'editor' | 'viewer' | string
 }
 
-export default function ShareDialog({ documentId, authorId, open, onOpenChange }: ShareDialogProps) {
+export default function ShareDialog({ documentId, authorId, open, onOpenChangeAction }: ShareDialogProps) {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState('')
   const { toast } = useToast()
+
+  // role selected by the owner when inviting; empty string shows placeholder 'Role'
+  const [selectedRole, setSelectedRole] = useState<'' | 'Editor' | 'Viewer'>('')
 
   const [ownerInfo, setOwnerInfo] = useState<{ name?: string | null, email?: string | null } | null>(null)
   const [removingIds, setRemovingIds] = useState<string[]>([])
@@ -65,13 +69,22 @@ export default function ShareDialog({ documentId, authorId, open, onOpenChange }
     e.preventDefault()
 
     try {
-      const res = await inviteUserToNote(documentId, email)
+      // default to 'editor' if no role was selected in the UI
+      const roleToSend = (selectedRole || 'Editor').toLowerCase() as 'editor' | 'viewer'
+      const res = await inviteUserToNote(documentId, email, roleToSend)
 
       if ((res as { error?: string }).error) {
-        toast({ title: 'Invite failed', description: (res as { error?: string }).error, variant: 'destructive' })
+        const err = (res as { error?: string }).error
+        // Friendly toast for unregistered users instead of a red box
+        if (err === 'User not found.') {
+          toast({ title: 'User not registered', description: 'That email is not registered. Ask them to sign up first.' })
+        } else {
+          toast({ title: 'Invite failed', description: err, variant: 'destructive' })
+        }
         return
       }
 
+      // Success toast
       toast({ title: 'Invite sent', description: 'User invited successfully.' })
 
       // refresh list
@@ -84,7 +97,7 @@ export default function ShareDialog({ documentId, authorId, open, onOpenChange }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChangeAction}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Share this note</DialogTitle>
@@ -179,8 +192,19 @@ export default function ShareDialog({ documentId, authorId, open, onOpenChange }
             </div>
           </div>
 
-          <form onSubmit={onInvite} className="flex gap-2">
+          <form onSubmit={onInvite} className="flex gap-2 items-center">
             <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter email to invite" />
+
+            <Select onValueChange={(val) => setSelectedRole(val as 'Editor' | 'Viewer')} defaultValue={selectedRole}>
+              <SelectTrigger className="w-36">
+                <SelectValue placeholder="Role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Editor">Editor</SelectItem>
+                <SelectItem value="Viewer">Viewer</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Button type="submit">Invite</Button>
           </form>
         </div>

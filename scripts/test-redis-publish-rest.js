@@ -17,9 +17,10 @@
     try {
       let Redis
       try {
-        Redis = require('ioredis')
+        const imp = await import('ioredis')
+        Redis = imp && (imp.default ?? imp)
       } catch (e) {
-        console.warn('[test-rest] require(ioredis) failed, falling back to REST', e && e.message)
+        console.warn('[test-rest] dynamic import(ioredis) failed, falling back to REST', e?.message)
       }
 
       if (!Redis) throw new Error('ioredis not available')
@@ -53,9 +54,17 @@
     const publishUrl = `${upstashUrl.replace(/\/$/, '')}/publish/${encodeURIComponent(channel)}`
     console.log('[test-rest] POST', publishUrl.replace(/:\/\/[^@]*@/, '://<redacted>@'))
 
-    const fetchFn = (typeof fetch !== 'undefined') ? fetch : (() => {
-      try { return require('node-fetch') } catch (e) { throw new Error('fetch not available and node-fetch not installed') }
-    })()
+    let fetchFn
+    if (typeof fetch !== 'undefined') {
+      fetchFn = fetch
+    } else {
+      try {
+        const imp = await import('node-fetch')
+        fetchFn = imp && (imp.default ?? imp)
+      } catch {
+        throw new Error('fetch not available and node-fetch not installed')
+      }
+    }
 
     const resp = await fetchFn(publishUrl, {
       method: 'POST',
@@ -72,7 +81,7 @@
     try {
       const json = JSON.parse(text)
       console.log('[test-rest] result=', json.result)
-    } catch (_) {
+    } catch {
       // ignore
     }
   } catch (err) {

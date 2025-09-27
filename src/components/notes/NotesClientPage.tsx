@@ -435,7 +435,7 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
                       <NoteCard
                         note={n}
                         isEditing={editingNoteId === n.id}
-                        onToggleEdit={setEditingNoteId}
+                        onToggleEditAction={setEditingNoteId}
                         onNoteDeleted={handleNoteDeleted}
                         onNoteUpdated={handleNoteUpdated}
                         highlight={searchQuery}
@@ -468,7 +468,7 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
                                   <NoteCard
                                     note={n}
                                     isEditing={editingNoteId === n.id}
-                                    onToggleEdit={setEditingNoteId}
+                                    onToggleEditAction={setEditingNoteId}
                                     onNoteDeleted={handleNoteDeleted}
                                     onNoteUpdated={handleNoteUpdated}
                                     highlight={searchQuery}
@@ -494,7 +494,7 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
                                     <NoteCard
                                       note={n}
                                       isEditing={editingNoteId === n.id}
-                                      onToggleEdit={setEditingNoteId}
+                                      onToggleEditAction={setEditingNoteId}
                                       onNoteDeleted={handleNoteDeleted}
                                       onNoteUpdated={handleNoteUpdated}
                                       highlight={searchQuery}
@@ -518,7 +518,7 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
                                     <NoteCard
                                       note={n}
                                       isEditing={editingNoteId === n.id}
-                                      onToggleEdit={setEditingNoteId}
+                                      onToggleEditAction={setEditingNoteId}
                                       onNoteDeleted={handleNoteDeleted}
                                       onNoteUpdated={handleNoteUpdated}
                                       autoFocus={autoFocusNoteId === n.id}

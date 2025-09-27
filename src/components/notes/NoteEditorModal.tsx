@@ -28,10 +28,10 @@ interface NoteEditorModalProps {
     is_archived?: boolean | null
     is_starred?: boolean | null
   } | null
-  onClose: () => void
+  onCloseAction: () => void
 }
 
-export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps) {
+export default function NoteEditorModal({ note, onCloseAction }: NoteEditorModalProps) {
   const router = useRouter()
 
   // Local optimistic copy of note for UI updates
@@ -39,9 +39,23 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [isEditorReady, setIsEditorReady] = useState(false)
   const readyTimerRef = useRef<number | null>(null)
+  const [readOnly, setReadOnly] = useState(false)
 
   useEffect(() => {
     setLocalNote(note)
+    // When a new note is loaded, determine if current user is allowed to edit
+    ;(async () => {
+      try {
+        if (!note) return setReadOnly(false)
+        const mod = await import('@/app/actions/collaborationActions')
+        const res = await mod.getUserRoleForDocument(note.id)
+        // role can be 'owner' | 'editor' | 'viewer' | null
+        setReadOnly(res.role === 'viewer')
+      } catch {
+        // default to editable to avoid locking out
+        setReadOnly(false)
+      }
+    })()
   }, [note])
 
   useEffect(() => {
@@ -89,7 +103,7 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
       // If the note was archived, navigate to archived list and close modal
   const nowArchived = !prev?.is_archived
       if (nowArchived) {
-        onClose()
+        onCloseAction()
         router.push('/notes/archived')
       }
     } catch (error) {
@@ -116,7 +130,7 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
       // If the note was starred, optionally navigate to starred list and close modal
       const nowStarred = !prev?.is_starred
       if (nowStarred) {
-        onClose()
+        onCloseAction()
         router.push('/notes/starred')
       }
     } catch (error) {
@@ -152,7 +166,7 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
   }, [note])
 
   return (
-    <Dialog open={note !== null} onOpenChange={(open) => { if (!open) onClose() }}>
+    <Dialog open={note !== null} onOpenChange={(open) => { if (!open) onCloseAction() }}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           {/* Header content can be added here if needed */}
@@ -163,6 +177,7 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
               className="h-8 w-8 p-0 rounded-full hover:bg-muted"
               onClick={() => setIsShareModalOpen(true)}
               title="Share note"
+              disabled={readOnly}
             >
               <Share className={`w-4 h-4 ${modalIconClass}`} />
             </Button>
@@ -174,6 +189,7 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
           {note && (
             <NoteEditor
               note={{ ...note, content: (note.content as unknown) as EditorDocument | string | null }}
+              readOnly={readOnly}
               onEditorReady={() => {
                 // small safety delay so the editor DOM can finish mounting and paint
                 if (readyTimerRef.current) clearTimeout(readyTimerRef.current)
@@ -197,6 +213,7 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
               localNote?.is_pinned ? 'bg-muted hover:bg-muted/80' : 'hover:bg-muted'
             }`}
             onClick={handleTogglePin}
+            disabled={readOnly}
             title={localNote?.is_pinned ? 'Unpin note' : 'Pin note'}
           >
             <Pin className={`w-4 h-4 ${localNote?.is_pinned ? 'text-foreground' : modalIconClass}`} />
@@ -210,6 +227,7 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
               localNote?.is_archived ? 'bg-muted hover:bg-muted/80' : 'hover:bg-muted'
             }`}
             onClick={handleToggleArchive}
+            disabled={readOnly}
             title={localNote?.is_archived ? 'Unarchive note' : 'Archive note'}
           >
             <Archive className={`w-4 h-4 ${localNote?.is_archived ? 'text-foreground' : modalIconClass}`} />
@@ -221,6 +239,7 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
             size="sm"
             className="h-8 w-8 p-0 rounded-full hover:bg-muted"
             onClick={handleColorChange}
+            disabled={readOnly}
             title="Change color"
           >
             <Palette className={`w-4 h-4 ${modalIconClass}`} />
@@ -233,6 +252,7 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
               localNote?.is_starred ? 'bg-muted hover:bg-muted/80' : 'hover:bg-muted'
             }`}
             onClick={handleToggleStar}
+            disabled={readOnly}
             title={localNote?.is_starred ? 'Unstar note' : 'Star note'}
           >
             <Star className={`w-4 h-4 ${localNote?.is_starred ? 'text-foreground' : modalIconClass}`} />
@@ -254,7 +274,7 @@ export default function NoteEditorModal({ note, onClose }: NoteEditorModalProps)
           documentId={note.id}
           authorId={note.author_id}
           open={isShareModalOpen}
-          onOpenChange={setIsShareModalOpen}
+          onOpenChangeAction={setIsShareModalOpen}
         />
       )}
     </Dialog>

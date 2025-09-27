@@ -173,13 +173,13 @@ export default function Navigation({ children }: NavigationProps) {
           <div>
             <button
               onClick={toggleCollapsed}
-              className={`
-                p-2 rounded-lg hover:bg-accent transition-all duration-200
-                ${isCollapsed ? 'rotate-180' : 'rotate-0'}
-              `}
+              className={
+                `rounded-lg hover:bg-accent transition-all duration-200 ${isCollapsed ? 'pl-4 pr-0 py-3' : 'p-3'} ${isCollapsed ? 'rotate-180' : 'rotate-0'}`
+              }
               aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
-              <ChevronsLeft className="h-4 w-4 text-muted-foreground" />
+              <ChevronsLeft className="h-5 w-5 text-muted-foreground" />
             </button>
           </div>
         </div>
@@ -250,7 +250,12 @@ export default function Navigation({ children }: NavigationProps) {
                     <IconComponent className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <div className={`transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'} flex-1 min-w-0`}>
                       {isExpanded && (
-                        <span className="text-sm text-foreground truncate block">{item.label}</span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-foreground truncate block">{item.label}</span>
+                          {item.label === 'Shared with me' && (
+                            <span className="ml-2 text-xs text-muted-foreground tabular-nums">{typeof sharedCount === 'number' ? sharedCount : '—'}</span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </button>

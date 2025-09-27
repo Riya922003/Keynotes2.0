@@ -32,9 +32,10 @@ interface NoteEditorProps {
   onSaved?: (updates: { title?: string; content?: EditorDocument | string | null }) => void
   autoFocus?: boolean
   onEditorReady?: () => void
+  readOnly?: boolean
 }
 
-export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus, onEditorReady }: NoteEditorProps) {
+export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus, onEditorReady, readOnly }: NoteEditorProps) {
   const [title, setTitle] = useState(note.title || '')
 
   const getInitialContent = (): PartialBlock[] | undefined => {
@@ -110,6 +111,9 @@ export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus, 
       // If nothing changed, skip saving. Keep deep-compare via stringify for simplicity.
       if (noteTitle === originalTitle && JSON.stringify(editorContent) === JSON.stringify(originalContent)) return
 
+      // If this view is read-only (viewer), skip saving
+      if (readOnly) return
+
       try {
         await updateNote(note.id, noteTitle, editorContent)
         onSaved?.({ title: noteTitle, content: editorContent })
@@ -159,6 +163,7 @@ export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus, 
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          disabled={readOnly}
           placeholder="Take a note..."
           className="text-lg font-semibold border-none shadow-none focus-visible:ring-0 px-0 bg-transparent placeholder:text-muted-foreground/60 resize-none"
           style={{ fontSize: '1.125rem', fontWeight: '600', color: titleColor || undefined }}
@@ -168,13 +173,19 @@ export default function BlockNoteClient({ note, titleColor, onSaved, autoFocus, 
 
       <div className="relative min-h-[150px] max-h-[350px] overflow-y-auto">
         <div className="[&_.bn-editor]:!border-none [&_.bn-editor]:!shadow-none [&_.bn-editor]:!outline-none [&_.bn-editor]:!bg-transparent [&_.bn-editor_.bn-block-outer]:!border-none [&_.bn-editor_.bn-block-content]:!border-none [&_.bn-side-menu]:!hidden [&_.bn-drag-handle]:!hidden">
-          <BlockNoteView
+          <div className="relative">
+            <BlockNoteView
             // editor's complex generic type can conflict with the library's view type; cast through unknown
             editor={editor as unknown as ComponentProps<typeof BlockNoteView>['editor']}
             theme="light"
             className="min-h-[150px] !border-none !outline-none !shadow-none"
             sideMenu={false}
           />
+            {readOnly && (
+              // Overlay to block input while preserving visual appearance
+              <div className="absolute inset-0 bg-transparent z-20" aria-hidden="true" />
+            )}
+          </div>
         </div>
       </div>
     </div>

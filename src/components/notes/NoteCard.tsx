@@ -16,7 +16,7 @@ import { NoteSummary } from '@/types/note'
 interface NoteCardProps {
   note: NoteSummary
   isEditing: boolean
-  onToggleEdit: (noteId: string | null) => void
+  onToggleEditAction: (noteId: string | null) => void
   onNoteDeleted?: (noteId: string) => void
   onNoteUpdated?: (noteId: string, updates: Partial<NoteSummary>) => void
   // Optional highlight string to highlight matches in title/content
@@ -40,7 +40,7 @@ interface Block {
 export default function NoteCard({ 
   note, 
   isEditing, 
-  onToggleEdit, 
+  onToggleEditAction, 
   onNoteDeleted, 
   onNoteUpdated,
   highlight,
@@ -51,6 +51,9 @@ export default function NoteCard({
   const [isDeleting, setIsDeleting] = useState(false)
   const [isRemovingReminder, setIsRemovingReminder] = useState(false)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+  // Show a compact actions bar immediately when opening the modal to avoid layout flashes.
+  const [showCompactActions, setShowCompactActions] = useState(false)
+  const [viewerReadOnly, setViewerReadOnly] = useState(false)
   
   // Predefined colors for notes - using darker, more vibrant colors for better text visibility
   const noteColors = [
@@ -192,6 +195,40 @@ export default function NoteCard({
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [showColorPicker, showReminderPicker])
+
+  // Compact actions lifecycle: show briefly when entering edit mode until editor is ready
+  useEffect(() => {
+    let t: number | undefined
+    if (isEditing) {
+      setShowCompactActions(true)
+      // hide compact after 2500ms if editor hasn't signaled readiness
+      t = window.setTimeout(() => setShowCompactActions(false), 2500)
+    } else {
+      setShowCompactActions(false)
+    }
+
+    return () => {
+      if (t !== undefined) window.clearTimeout(t)
+    }
+  }, [isEditing])
+
+  // Fetch role when modal opens (determine if current user should be read-only)
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        if (!isEditing) return
+        const mod = await import('@/app/actions/collaborationActions')
+        const res = await mod.getUserRoleForDocument(note.id)
+        if (!mounted) return
+        setViewerReadOnly(res.role === 'viewer')
+      } catch {
+        if (!mounted) return
+        setViewerReadOnly(false)
+      }
+    })()
+    return () => { mounted = false }
+  }, [isEditing, note.id])
   
   // Helper function to extract text content from note content
   const getContentPreview = () => {
@@ -333,12 +370,15 @@ export default function NoteCard({
       }
       return c as import('@/types/editor').EditorDocument
     }
-    return createPortal(
+  const normalizedContent = normalizeContent(note.content)
+  const isNoteReady = Boolean(normalizedContent) || Boolean(note.title)
+
+  return createPortal(
       <>
         {/* Modal backdrop */}
         <div 
           className="fixed inset-0 bg-black/50 z-[9998]"
-          onClick={() => onToggleEdit(null)}
+      onClick={() => onToggleEditAction(null)}
         />
         
         {/* Modal note editor */}
@@ -350,7 +390,7 @@ export default function NoteCard({
               // Only close if clicking this container, not its children
               if (e.target === e.currentTarget) {
                 setIsShareModalOpen(false)
-                onToggleEdit(null)
+                onToggleEditAction(null)
               }
             }}
           >
@@ -373,7 +413,7 @@ export default function NoteCard({
                 onClick={(e) => {
                   e.stopPropagation()
                   setIsShareModalOpen(false)
-                  onToggleEdit(null)
+                  onToggleEditAction(null)
                 }}
                 className="h-8 w-8 p-0 hover:bg-muted/50 rounded-full"
                 style={{ color: computedTitleColor }}
@@ -396,6 +436,10 @@ export default function NoteCard({
                 }}
                 titleColor={computedTitleColor}
                 autoFocus={autoFocus}
+                onEditorReady={() => {
+                  // Editor instance is ready; hide compact actions
+                  try { setShowCompactActions(false) } catch {}
+                }}
                 onSaved={(updates) => {
                   // Update parent immediately so UI reflects changes in real-time
                   if (updates.title !== undefined) {
@@ -405,18 +449,36 @@ export default function NoteCard({
                     onNoteUpdated?.(note.id, { content: updates.content })
                   }
                 }}
+                readOnly={viewerReadOnly}
               />
             </div>
 
-            {/* Note actions/features bar at bottom */}
-            <div 
-              className="absolute bottom-0 left-0 right-0 flex justify-between items-center bg-background/95 backdrop-blur-sm border-t p-3"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>Edited {toDateOrNull(note.updated_at)?.toLocaleDateString() ?? 'Unknown'}</span>
+            {/* Compact actions shown immediately while editor loads to avoid layout flash */}
+            {showCompactActions && !isNoteReady && (
+              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 bg-background/90 border border-border rounded-full px-3 py-1 flex items-center gap-2 z-[10001]">
+                <span className="text-xs text-muted-foreground">{toDateOrNull(note.updated_at)?.toLocaleDateString() ?? '—'}</span>
+                <div className="flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-muted-foreground" />
+                  <Bell className="w-4 h-4 text-muted-foreground" />
+                  <Archive className="w-4 h-4 text-muted-foreground" />
+                  <Star className="w-4 h-4 text-muted-foreground" />
+                  <Pin className="w-4 h-4 text-muted-foreground" />
+                  <Trash2 className="w-4 h-4 text-muted-foreground" />
+                  <Share className="w-4 h-4 text-muted-foreground" />
+                </div>
               </div>
-              <div className="flex items-center gap-1 relative">
+            )}
+
+            {/* Note actions/features bar at bottom - only show when note is fully loaded */}
+            {isNoteReady && (
+              <div 
+                className="absolute bottom-0 left-0 right-0 flex justify-between items-center bg-background/95 backdrop-blur-sm border-t p-3"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>Edited {toDateOrNull(note.updated_at)?.toLocaleDateString() ?? 'Unknown'}</span>
+                </div>
+                <div className="flex items-center gap-1 relative">
                 {/* Color palette */}
                 <div className="relative">
                   <Button 
@@ -426,9 +488,11 @@ export default function NoteCard({
                     title="Change color"
                     onClick={(e) => {
                       e.stopPropagation()
+                      if (viewerReadOnly) return
                       setShowColorPicker(!showColorPicker)
                       setShowReminderPicker(false)
                     }}
+                    disabled={viewerReadOnly}
                   >
                     <Palette className="w-4 h-4" />
                   </Button>
@@ -474,6 +538,7 @@ export default function NoteCard({
                     title={note.reminder_date ? "Remove reminder (right-click to edit)" : "Add reminder"}
                     onClick={(e) => {
                       e.stopPropagation()
+                      if (viewerReadOnly) return
                       if (note.reminder_date) {
                         // If reminder is set, remove it on left click
                         handleRemoveReminder()
@@ -486,6 +551,7 @@ export default function NoteCard({
                     onContextMenu={(e) => {
                       e.preventDefault()
                       e.stopPropagation()
+                      if (viewerReadOnly) return
                       // Right-click opens picker for editing even if reminder is set
                       setShowReminderPicker(!showReminderPicker)
                       setShowColorPicker(false)
@@ -503,8 +569,8 @@ export default function NoteCard({
                         date: toDateOrNull(note.reminder_date) as Date | null,
                         repeat: note.reminder_repeat
                       }}
-                      onReminderSet={handleReminderSet}
-                      onClose={() => setShowReminderPicker(false)}
+                      onReminderSetAction={handleReminderSet}
+                      onCloseAction={() => setShowReminderPicker(false)}
                     />
                   )}
                 </div>
@@ -517,8 +583,9 @@ export default function NoteCard({
                   title={note.is_archived ? "Unarchive" : "Archive"}
                   onClick={(e) => {
                     e.stopPropagation()
-                    handleToggleArchive()
+                    if (!viewerReadOnly) handleToggleArchive()
                   }}
+                  disabled={viewerReadOnly}
                 >
                   <Archive className={`w-4 h-4 ${note.is_archived ? 'fill-current' : ''}`} />
                 </Button>
@@ -534,6 +601,7 @@ export default function NoteCard({
                     // Dynamically import server action to avoid bundling server code
                     ;(async () => {
                       try {
+                        if (viewerReadOnly) return
                         const { toggleStarNote } = await import('@/app/actions/noteActions')
                         await toggleStarNote(note.id)
                         onNoteUpdated?.(note.id, { is_starred: !note.is_starred })
@@ -543,6 +611,7 @@ export default function NoteCard({
                       }
                     })()
                   }}
+                  disabled={viewerReadOnly}
                 >
                   <Star className={`w-4 h-4 ${note.is_starred ? 'fill-current' : ''}`} />
                 </Button>
@@ -555,7 +624,7 @@ export default function NoteCard({
                   title={note.is_pinned ? "Unpin note" : "Pin note"}
                   onClick={(e) => {
                     e.stopPropagation()
-                    handleTogglePin()
+                    if (!viewerReadOnly) handleTogglePin()
                   }}
                 >
                   <Pin className={`w-4 h-4 ${note.is_pinned ? 'fill-current' : ''}`} />
@@ -569,7 +638,7 @@ export default function NoteCard({
                   title="Delete note"
                   onClick={(e) => {
                     e.stopPropagation()
-                    handleDeleteNote()
+                    if (!viewerReadOnly) handleDeleteNote()
                   }}
                   disabled={isDeleting}
                 >
@@ -584,8 +653,9 @@ export default function NoteCard({
                   title="Share note"
                   onClick={(e) => {
                     e.stopPropagation()
-                    setIsShareModalOpen(true)
+                    if (!viewerReadOnly) setIsShareModalOpen(true)
                   }}
+                  disabled={viewerReadOnly}
                 >
                   <Share className="w-4 h-4" />
                 </Button>
@@ -594,11 +664,12 @@ export default function NoteCard({
                     documentId={note.id}
                     authorId={note.author_id}
                     open={isShareModalOpen}
-                    onOpenChange={setIsShareModalOpen}
+                    onOpenChangeAction={setIsShareModalOpen}
                   />
                 )}
               </div>
             </div>
+            )}
           </Card>
           </div>
         </div>
@@ -654,7 +725,7 @@ export default function NoteCard({
         // Add a subtle glow for pinned notes
         boxShadow: note.is_pinned ? '0 0 0 2px rgba(255, 193, 7, 0.3)' : undefined,
       }}
-      onClick={() => onToggleEdit(note.id)}
+  onClick={() => onToggleEditAction(note.id)}
       {...attributes}
     >
       {/* Drag Handle - only show for non-pinned notes */}

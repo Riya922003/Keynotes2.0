@@ -116,3 +116,16 @@ body {
   animation: float-slow 5s ease-in-out infinite;
   animation-delay: 2s;
 }
+
+/* Dialog specific animation tweaks: slightly slower open/close for a gentler feel */
+.dialog-overlay {
+	/* ensure overlay uses the project's animate utilities but lengthen timing */
+	--animate-in-duration: 1650ms;
+	--animate-out-duration: 1640ms;
+}
+
+.dialog-content {
+	/* content scale/zoom and fade should feel a bit slower */
+	--animate-in-duration: 1660ms;
+	--animate-out-duration: 1660ms;
+}

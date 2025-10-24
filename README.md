@@ -118,3 +118,7 @@ This project is configured with a professional CI/CD pipeline to ensure code qua
   - **Type Checking & Building**: Performs a full production build to catch any TypeScript errors or build failures before they can be deployed
 
 - **Continuous Deployment (CD)**: Handled by Vercel. Every successful push to the main branch is automatically built and deployed to the live environment with zero downtime.
+
+## test User Credentials
+- user email - test1@gmail.com
+- password - 12345678

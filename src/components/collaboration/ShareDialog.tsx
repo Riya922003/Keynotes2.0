@@ -7,7 +7,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
-import { getCollaborators, inviteUserToNote, getUserById, removeCollaborator } from '@/app/actions/collaborationActions'
+import { getCollaborators, inviteUserToNote, getUserById, removeCollaborator, searchUsersByPrefix } from '@/app/actions/collaborationActions'
 import { Trash2, Edit, Eye } from 'lucide-react'
 import Skeleton from '@/components/ui/skeleton'
 
@@ -31,7 +31,6 @@ export default function ShareDialog({ documentId, authorId, open, onOpenChangeAc
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState('')
   const [suggestions, setSuggestions] = useState<Collaborator[]>([])
-  const [isSuggesting, setIsSuggesting] = useState(false)
   const { toast } = useToast()
 
   // role selected by the owner when inviting; empty string shows placeholder 'Role'
@@ -78,15 +77,13 @@ export default function ShareDialog({ documentId, authorId, open, onOpenChangeAc
         return
       }
       try {
-        setIsSuggesting(true)
-        // @ts-ignore server action import callable from client (used similarly for getCollaborators)
         const rows = await searchUsersByPrefix(email, documentId)
         if (!mounted) return
         setSuggestions((rows as Collaborator[]) || [])
       } catch {
         if (mounted) setSuggestions([])
       } finally {
-        if (mounted) setIsSuggesting(false)
+        // no-op
       }
     }
 
@@ -97,7 +94,7 @@ export default function ShareDialog({ documentId, authorId, open, onOpenChangeAc
       mounted = false
       if (t) clearTimeout(t)
     }
-  }, [email])
+  }, [email, documentId])
 
   async function onInvite(e: React.FormEvent) {
     e.preventDefault()

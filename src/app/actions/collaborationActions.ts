@@ -113,10 +113,10 @@ export async function searchUsersByPrefix(prefix: string, documentId?: string) {
       try {
         const docRows = await db.select({ workspace_id: documents.workspace_id, author_id: documents.author_id }).from(documents).where(eq(documents.id, documentId)).limit(1)
         if (docRows.length > 0) {
-          // @ts-ignore
-          workspaceId = docRows[0].workspace_id || null
-          // @ts-ignore
-          docAuthorId = docRows[0].author_id || null
+          // Narrow the returned row to the expected shape so we don't need ts-ignore comments
+          const firstRow = docRows[0] as { workspace_id?: string | null; author_id?: string | null }
+          workspaceId = firstRow.workspace_id ?? null
+          docAuthorId = firstRow.author_id ?? null
         }
       } catch {}
     }
@@ -135,10 +135,12 @@ export async function searchUsersByPrefix(prefix: string, documentId?: string) {
 
       // Exclude existing collaborators for the document and the document author
       if (documentId) {
-        const existing = await db.select({ id: document_collaborators.userId }).from(document_collaborators).where(eq(document_collaborators.documentId, documentId))
-        const excluded = new Set(existing.map((r: any) => r.id))
-        if (docAuthorId) excluded.add(docAuthorId)
-        return (rows as any[]).filter(r => !excluded.has(r.id)).slice(0, 10)
+  const existing = await db.select({ id: document_collaborators.userId }).from(document_collaborators).where(eq(document_collaborators.documentId, documentId))
+  // existing rows return objects with an `id` property (user id). Use a narrow type instead of `any`.
+  const excluded = new Set(existing.map((r: { id: string }) => r.id))
+  if (docAuthorId) excluded.add(docAuthorId)
+  // Narrow rows to objects with at least `id` for the local filter
+  return (rows as { id: string }[]).filter(r => !excluded.has(r.id)).slice(0, 10)
       }
 
       return rows

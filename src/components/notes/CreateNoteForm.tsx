@@ -17,6 +17,7 @@ import {
   Bell,
   Sparkles
 } from 'lucide-react'
+import { X } from 'lucide-react'
 
 import type { NoteSummary } from '@/types/note'
 
@@ -135,8 +136,13 @@ export default function CreateNoteForm({ onNoteCreated }: CreateNoteFormProps) {
     setIsExpanded(true)
   }
 
-  const handleClose = () => {
-    handleSubmit()
+  const handleCancel = () => {
+    // Close without saving: reset and collapse
+    setTitle('')
+    setContent('')
+    setSelectedColor(null)
+    setIsPinned(false)
+    setIsExpanded(false)
   }
 
   if (!isExpanded) {
@@ -166,13 +172,24 @@ export default function CreateNoteForm({ onNoteCreated }: CreateNoteFormProps) {
           }}
         >
           <CardContent className="p-4 space-y-3 relative">
+            {/* Small close (X) in top-right of the card - absolute positioned on CardContent */}
+            <button
+              onClick={(e) => { e.stopPropagation(); handleCancel(); }}
+              aria-label="Close"
+              className="absolute top-2 right-2 inline-flex items-center justify-center w-7 h-7 rounded-full hover:bg-muted/60"
+              style={{ zIndex: 40 }}
+            >
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
           {/* Title Input */}
           <div className="flex items-center gap-2 relative z-20">
             <Input
               value={title}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
               placeholder="Title"
-              className="border-none shadow-none focus-visible:ring-0 text-lg font-semibold px-0 bg-transparent"
+              className={`border-none shadow-none focus-visible:ring-0 text-lg font-semibold px-0 bg-transparent ${showSplashCursor ? 'cursor-pointer' : 'cursor-text'}`}
+              readOnly={showSplashCursor}
+              onFocus={(e) => { if (showSplashCursor) (e.currentTarget as HTMLInputElement).blur() }}
               autoFocus
             />
             {isPinned && (
@@ -186,8 +203,10 @@ export default function CreateNoteForm({ onNoteCreated }: CreateNoteFormProps) {
               value={content}
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
               placeholder="Take a note..."
-              className="border-none shadow-none focus-visible:ring-0 resize-none px-0 bg-transparent min-h-[100px] text-base"
+              className={`border-none shadow-none focus-visible:ring-0 resize-none px-0 bg-transparent min-h-[100px] text-base ${showSplashCursor ? 'cursor-pointer' : 'cursor-text'}`}
               rows={4}
+              readOnly={showSplashCursor}
+              onFocus={(e) => { if (showSplashCursor) (e.currentTarget as HTMLTextAreaElement).blur() }}
             />
           </div>
 
@@ -308,14 +327,14 @@ export default function CreateNoteForm({ onNoteCreated }: CreateNoteFormProps) {
               </Button>
             </div>
 
-            {/* Close Button */}
+            {/* Save Button (replaces previous Close) */}
             <Button
-              onClick={handleClose}
-              variant="ghost"
+              onClick={(e) => { e.stopPropagation(); handleSubmit(); }}
+              variant="outline"
               size="sm"
-              className="text-sm text-foreground hover:bg-muted/80 hover:text-foreground"
+              className="text-sm ml-auto"
             >
-              Close
+              Save
             </Button>
           </div>
         </CardContent>

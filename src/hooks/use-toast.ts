@@ -9,7 +9,8 @@ import type {
 } from "@/components/ui/toast"
 
 const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+// Auto-hide toasts after 4 seconds
+const TOAST_REMOVE_DELAY = 4000
 
 type ToasterToast = ToastProps & {
   id: string
@@ -161,6 +162,9 @@ function toast({ ...props }: Toast) {
       },
     },
   })
+
+  // Schedule automatic removal after TOAST_REMOVE_DELAY
+  addToRemoveQueue(id)
 
   return {
     id: id,

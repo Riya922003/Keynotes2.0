@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from '@/lib/db';
-import { users, document_collaborators } from '@/lib/db/schema';
+import { users, document_collaborators, workspace_members } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { broadcastNotesUpdated } from '@/lib/realtime'
@@ -95,6 +95,65 @@ export async function getUserById(userId: string) {
   } catch {
       // swallow DB lookup errors and return null so UI falls back to id
     return null
+  }
+}
+
+// Search users by prefix (case-insensitive) on email or name. Returns up to 10 results.
+export async function searchUsersByPrefix(prefix: string, documentId?: string) {
+  if (!prefix || prefix.trim().length === 0) return []
+  const q = prefix.trim().toLowerCase()
+  try {
+    const { sql } = await import('drizzle-orm')
+    const pattern = q + '%'
+
+    // If a documentId is provided, try to limit suggestions to users in the same workspace
+    let workspaceId: string | null = null
+    let docAuthorId: string | null = null
+    if (documentId) {
+      try {
+        const docRows = await db.select({ workspace_id: documents.workspace_id, author_id: documents.author_id }).from(documents).where(eq(documents.id, documentId)).limit(1)
+        if (docRows.length > 0) {
+          // @ts-ignore
+          workspaceId = docRows[0].workspace_id || null
+          // @ts-ignore
+          docAuthorId = docRows[0].author_id || null
+        }
+      } catch {}
+    }
+
+    // Build base where clause for prefix matching
+    const whereClause = sql`(LOWER(${users.email}) LIKE ${pattern}) OR (LOWER(${users.name}) LIKE ${pattern})`
+
+    if (workspaceId) {
+      // Fetch workspace member users that match the prefix
+      const rows = await db
+        .select({ id: users.id, name: users.name, email: users.email, image: users.image })
+        .from(users)
+        .leftJoin(workspace_members, eq(workspace_members.user_id, users.id))
+        .where(sql`(${workspace_members.workspace_id} = ${workspaceId}) AND (${whereClause})`)
+        .limit(10)
+
+      // Exclude existing collaborators for the document and the document author
+      if (documentId) {
+        const existing = await db.select({ id: document_collaborators.userId }).from(document_collaborators).where(eq(document_collaborators.documentId, documentId))
+        const excluded = new Set(existing.map((r: any) => r.id))
+        if (docAuthorId) excluded.add(docAuthorId)
+        return (rows as any[]).filter(r => !excluded.has(r.id)).slice(0, 10)
+      }
+
+      return rows
+    }
+
+    // Fallback: global search across users when no workspace context
+    const rows = await db
+      .select({ id: users.id, name: users.name, email: users.email, image: users.image })
+      .from(users)
+      .where(whereClause)
+      .limit(10)
+
+    return rows
+  } catch {
+    return []
   }
 }
 

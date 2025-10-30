@@ -30,6 +30,8 @@ export default function ShareDialog({ documentId, authorId, open, onOpenChangeAc
   const [collaborators, setCollaborators] = useState<Collaborator[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState('')
+  const [suggestions, setSuggestions] = useState<Collaborator[]>([])
+  const [isSuggesting, setIsSuggesting] = useState(false)
   const { toast } = useToast()
 
   // role selected by the owner when inviting; empty string shows placeholder 'Role'
@@ -64,6 +66,38 @@ export default function ShareDialog({ documentId, authorId, open, onOpenChangeAc
       mounted = false
     }
   }, [open, documentId, authorId])
+
+  // Debounced user search for email suggestions
+  useEffect(() => {
+    let mounted = true
+    let t: ReturnType<typeof setTimeout> | null = null
+
+    const fetchSuggestions = async () => {
+      if (!email || email.trim().length === 0) {
+        if (mounted) setSuggestions([])
+        return
+      }
+      try {
+        setIsSuggesting(true)
+        // @ts-ignore server action import callable from client (used similarly for getCollaborators)
+        const rows = await searchUsersByPrefix(email, documentId)
+        if (!mounted) return
+        setSuggestions((rows as Collaborator[]) || [])
+      } catch {
+        if (mounted) setSuggestions([])
+      } finally {
+        if (mounted) setIsSuggesting(false)
+      }
+    }
+
+    // Debounce 250ms
+    t = setTimeout(fetchSuggestions, 250)
+
+    return () => {
+      mounted = false
+      if (t) clearTimeout(t)
+    }
+  }, [email])
 
   async function onInvite(e: React.FormEvent) {
     e.preventDefault()
@@ -208,8 +242,43 @@ export default function ShareDialog({ documentId, authorId, open, onOpenChangeAc
             </div>
           </div>
 
-          <form onSubmit={onInvite} className="flex gap-2 items-center">
-            <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter email to invite" />
+          <form onSubmit={onInvite} className="flex gap-2 items-center relative">
+            <div className="w-full">
+              <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter email to invite" />
+
+              {/* Suggestions dropdown */}
+              <div className="absolute left-0 mt-1 w-full bg-popover border rounded-md shadow z-40">
+                {suggestions.length > 0 ? (
+                  suggestions.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        setEmail(s.email || '')
+                        setSuggestions([])
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-accent"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Avatar>
+                          {s.avatar_url ? <AvatarImage src={s.avatar_url ?? undefined} alt={s.name ?? undefined} /> : <AvatarFallback>{(s.name || s.email || '').slice(0,2).toUpperCase()}</AvatarFallback>}
+                        </Avatar>
+                        <div className="flex flex-col text-sm">
+                          <span className="font-medium">{s.name || s.email}</span>
+                          <span className="text-xs text-muted-foreground">{s.email}</span>
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  // No suggestions: show a friendly hint and allow inviting the typed email (will fail if unregistered)
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    No registered users found in this workspace.
+                    <div className="text-xs text-muted-foreground mt-1">If the email is not registered they will need to sign up before they can be invited.</div>
+                  </div>
+                )}
+              </div>
+            </div>
 
             <Select onValueChange={(val) => setSelectedRole(val as 'Editor' | 'Viewer')} defaultValue={selectedRole}>
               <SelectTrigger className="w-36">

@@ -5,6 +5,7 @@ import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { signIn } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -36,6 +37,7 @@ type FormData = z.infer<typeof formSchema>
 export default function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
+  const router = useRouter()
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -64,6 +66,36 @@ export default function RegisterForm() {
           description: "Your account has been created successfully!",
         })
         form.reset()
+
+        // Attempt to sign the user in immediately and redirect to dashboard
+        try {
+          const signResult = await signIn("credentials", {
+            email: values.email,
+            password: values.password,
+            redirect: false,
+          })
+
+          if (signResult?.error) {
+            // If auto sign-in fails, show an error toast but registration succeeded
+            toast({
+              variant: "destructive",
+              title: "Signed In Failed",
+              description:
+                "Account created but automatic sign-in failed. Please log in.",
+            })
+          } else if (signResult?.ok) {
+            router.push("/dashboard")
+            router.refresh()
+          }
+        } catch (err) {
+          console.error("Auto sign-in error:", err)
+          toast({
+            variant: "destructive",
+            title: "Signed In Failed",
+            description:
+              "Account created but automatic sign-in failed. Please log in.",
+          })
+        }
       }
     } catch (error) {
       console.error('Registration error:', error)

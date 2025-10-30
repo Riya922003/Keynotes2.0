@@ -2,8 +2,6 @@
 
 import Image from 'next/image'
 import { useState } from 'react'
-import { Sparkles } from 'lucide-react'
-import SplashCursor from '@/components/SplashCursor'
 
 const features = [
   {
@@ -43,7 +41,6 @@ const collageImages = [
 
 export default function FeatureShowcase() {
   const [activeTab, setActiveTab] = useState('plan')
-  const [splashEffect, setSplashEffect] = useState(false)
 
   const activeFeature = features.find(feature => feature.id === activeTab) || features[0]
 
@@ -180,15 +177,7 @@ export default function FeatureShowcase() {
                     {activeFeature.title}
                   </h3>
                 </div>
-                <button
-                  onClick={() => setSplashEffect(!splashEffect)}
-                  className="shrink-0 px-3 py-2 border-2 border-purple-500 rounded-md hover:bg-purple-100 hover:border-purple-600 transition-all duration-200 bg-white shadow-md flex items-center gap-1"
-                  title="Toggle Splash Effect"
-                  style={{ minWidth: '60px', minHeight: '36px' }}
-                >
-                  <Sparkles className="w-5 h-5 text-purple-600" />
-                  <span className="text-purple-600 font-medium">✨</span>
-                </button>
+                {/* Sparkle toggle moved to header */}
               </div>
               <p className="text-lg text-muted-foreground leading-relaxed">
                 {activeFeature.description}
@@ -208,7 +197,7 @@ export default function FeatureShowcase() {
         </div>
       </div>
     </section>
-    {splashEffect && <SplashCursor />}
+    {/* Splash cursor is handled globally by SplashProvider */}
     </>
   )
 }

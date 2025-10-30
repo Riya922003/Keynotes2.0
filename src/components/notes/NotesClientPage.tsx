@@ -235,6 +235,20 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
 
   const router = useRouter()
 
+  // Helper to remove duplicate items by `id` while preserving order
+  const uniqueById = <T extends { id?: string }>(arr?: T[] | null) => {
+    if (!arr || arr.length === 0) return [] as T[]
+    const seen = new Set<string>()
+    const out: T[] = []
+    for (const n of arr) {
+      if (!n || !n.id) continue
+      if (seen.has(n.id)) continue
+      seen.add(n.id)
+      out.push(n)
+    }
+    return out
+  }
+
   // Sync searchQuery to URL q param whenever it changes (replace so history isn't cluttered)
   useEffect(() => {
     const params = new URLSearchParams(searchParams?.toString() || '')
@@ -430,8 +444,8 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
               <div>
                 <h3 className="px-2 text-xs text-muted-foreground">Shared with you</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {sharedNotes.filter((s) => s && s.id).map((n: NoteSummary, idx: number) => (
-                    <div key={n.id ?? `shared-${idx}`} data-note-id={n.id}>
+                  {uniqueById(sharedNotes).map((n: NoteSummary) => (
+                    <div key={n.id} data-note-id={n.id}>
                       <NoteCard
                         note={n}
                         isEditing={editingNoteId === n.id}
@@ -461,9 +475,9 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
                         {searchResults.length === 0 ? (
                           <div className="px-2 py-6 text-sm text-muted-foreground">No results</div>
                         ) : (
-                          <SortableContext items={searchResults.map(n => n.id)} strategy={rectSortingStrategy}>
+                          <SortableContext items={uniqueById(searchResults).map(n => n.id)} strategy={rectSortingStrategy}>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                              {searchResults.map(n => (
+                              {uniqueById(searchResults).map(n => (
                                 <div key={n.id} data-note-id={n.id}>
                                   <NoteCard
                                     note={n}
@@ -489,7 +503,7 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
                             <h3 className="px-2 text-xs text-muted-foreground">Pinned</h3>
                             <SortableContext items={pinnedNotes.map(n => n.id)} strategy={rectSortingStrategy}>
                               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                                {pinnedNotes.map(n => (
+                                {uniqueById(pinnedNotes).map(n => (
                                   <div key={n.id} data-note-id={n.id}>
                                     <NoteCard
                                       note={n}
@@ -511,9 +525,9 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
                         {otherNotes.length > 0 && (
                           <section>
                             <h3 className="px-2 text-sm font-medium text-muted-foreground">Other Notes</h3>
-                            <SortableContext items={otherNotes.map(n => n.id)} strategy={rectSortingStrategy}>
+                            <SortableContext items={uniqueById(otherNotes).map(n => n.id)} strategy={rectSortingStrategy}>
                               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                                {otherNotes.map(n => (
+                                {uniqueById(otherNotes).map(n => (
                                   <div key={n.id} data-note-id={n.id}>
                                     <NoteCard
                                       note={n}
@@ -537,7 +551,7 @@ export default function NotesClientPage({ initialNotes, sharedNotes: initialShar
                 // Non-interactive fallback during SSR / before client mount
                 <section className="space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {notes.map(n => (
+                    {uniqueById(notes).map(n => (
                       <div key={n.id} className="p-3 border rounded bg-card">
                         <div className="font-semibold">{n.title || 'Untitled'}</div>
                         <div className="text-sm text-muted-foreground">{(n.content && typeof n.content === 'string') ? (n.content.slice(0, 100)) : ''}</div>

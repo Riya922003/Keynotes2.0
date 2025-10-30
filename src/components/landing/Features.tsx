@@ -1,4 +1,5 @@
 import { HeartPulse, Users, Sparkles, Lock } from 'lucide-react'
+import StarBorder from '@/components/StarBorder'
 
 export default function Features() {
   const features = [
@@ -35,17 +36,26 @@ export default function Features() {
           {features.map((feature, index) => {
             const IconComponent = feature.icon
             return (
-              <div key={index} className="group flex flex-col items-center text-center p-6 rounded-lg border bg-card hover:shadow-xl hover:scale-105 hover:border-primary/20 transition-all duration-300 cursor-pointer">
-                <div className="mb-4 p-3 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                  <IconComponent className="h-8 w-8 text-primary transition-transform group-hover:scale-110" />
+              <StarBorder
+                as="div"
+                key={index}
+                className="w-full"
+                color="rgba(99,102,241,0.9)"
+                speed="6s"
+                thickness={2}
+              >
+                <div className="group flex flex-col items-center text-center p-6 rounded-lg border bg-card hover:shadow-xl hover:scale-105 hover:border-primary/20 transition-all duration-300 cursor-pointer">
+                  <div className="mb-4 p-3 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                    <IconComponent className="h-8 w-8 text-primary transition-transform group-hover:scale-110" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-3">
+                    {feature.title}
+                  </h3>
+                  <p className="text-muted-foreground leading-relaxed">
+                    {feature.description}
+                  </p>
                 </div>
-                <h3 className="text-xl font-semibold mb-3">
-                  {feature.title}
-                </h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  {feature.description}
-                </p>
-              </div>
+              </StarBorder>
             )
           })}
         </div>

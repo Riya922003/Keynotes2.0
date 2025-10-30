@@ -4,6 +4,7 @@ import { ClientProviders } from "@/components/ClientProviders";
 import ConditionalHeader from "@/components/ConditionalHeader";
 import ConditionalFooter from "@/components/ConditionalFooter";
 import { Toaster } from "@/components/ui/toaster";
+import BackToTop from '@/components/BackToTop';
 
 export const metadata: Metadata = {
   title: "Keynotes",
@@ -27,6 +28,7 @@ export default function RootLayout({
             <ConditionalFooter />
           </div>
           <Toaster />
+          <BackToTop />
         </ClientProviders>
       </body>
     </html>

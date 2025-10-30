@@ -7,7 +7,7 @@ export default function ConditionalHeader() {
   const pathname = usePathname()
   
   // Don't show header on notes pages or dashboard
-  if (pathname.startsWith('/notes') || pathname.startsWith('/dashboard')) {
+  if (pathname && (pathname.startsWith('/notes') || pathname.startsWith('/dashboard'))) {
     return null
   }
   

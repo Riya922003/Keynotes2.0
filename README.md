@@ -109,6 +109,17 @@ To get a local copy up and running, follow these simple steps.
 
 6. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## 🔐 Test Credentials
+
+For convenience during local development and testing, you can use the following test account:
+
+```
+email: test12@gmail.com
+password: test12@2003
+```
+
+Use these credentials with the app's email/password sign-in flow. Do not use this account for sensitive data in production.
+
 ## ⚙️ CI/CD Pipeline
 
 This project is configured with a professional CI/CD pipeline to ensure code quality and automate deployments.
@@ -118,3 +129,10 @@ This project is configured with a professional CI/CD pipeline to ensure code qua
   - **Type Checking & Building**: Performs a full production build to catch any TypeScript errors or build failures before they can be deployed
 
 - **Continuous Deployment (CD)**: Handled by Vercel. Every successful push to the main branch is automatically built and deployed to the live environment with zero downtime.
+
+## Test Credentials
+- Email-test12@gmail.com
+- Password= test12@2003
+
+## Maintainer Contact
+- Email - beesoul98012@gmail.com

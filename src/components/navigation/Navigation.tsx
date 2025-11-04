@@ -2,10 +2,12 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import SearchBar from '@/components/search/SearchBar'
 import { getSidebarCounts } from '@/app/actions/noteActions'
 import { onNotesUpdated } from '@/lib/notesSync'
-import { ChevronsLeft, FileText, Share, Settings, Archive, Star, Users, Wrench, Home } from 'lucide-react'
+import { ChevronsLeft, FileText, Share, Settings, Archive, Star, Users, Wrench, Home, BookHeart, Loader2 } from 'lucide-react'
+// Accordion removed — journal archive moved to calendar
 
 interface NavigationProps {
   children: React.ReactNode
@@ -14,6 +16,7 @@ interface NavigationProps {
 export default function Navigation({ children }: NavigationProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isHovering, setIsHovering] = useState(false)
+  const [loadingLink, setLoadingLink] = useState<string | null>(null)
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   
   // Check if it's mobile view (you can install a useMediaQuery hook or use this simple version)
@@ -126,12 +129,17 @@ export default function Navigation({ children }: NavigationProps) {
   const [archivedCount, setArchivedCount] = useState<number | undefined>(undefined)
   const [starredCount, setStarredCount] = useState<number | undefined>(undefined)
   const [sharedCount, setSharedCount] = useState<number | undefined>(undefined)
+  
 
-  // Sidebar items (labels rendered dynamically with counts)
-  const privateItems = [
+  // Sidebar items - organized by section
+  const notesItems = [
     { icon: FileText, label: 'My Notes', count: notesCount },
     { icon: Star, label: 'Starred', count: starredCount },
     { icon: Archive, label: 'Archived', count: archivedCount },
+  ]
+
+  const journalItems = [
+    { icon: BookHeart, label: 'My Journal', count: undefined },
   ]
 
   const sharedItems = [
@@ -194,40 +202,117 @@ export default function Navigation({ children }: NavigationProps) {
               </div>
             )}
           </div>
-          {/* Private Section */}
+          {/* Notes Section */}
           <div>
             <div className={`px-2 mb-3 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
               {isExpanded && (
                 <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Private
+                  Notes
                 </h3>
               )}
             </div>
             <nav className="space-y-1">
-              {privateItems.map((item, index) => {
+              {notesItems.map((item, index) => {
                 const IconComponent = item.icon
+                // Determine href based on label
+                let href = '/notes'
+                if (item.label === 'My Notes') {
+                  href = '/notes'
+                } else if (item.label === 'Starred') {
+                  href = '/notes?filter=starred'
+                } else if (item.label === 'Archived') {
+                  href = '/notes?filter=archived'
+                }
+                
+                const isLinkLoading = loadingLink === href
+                
                 return (
-                  <button
+                  <Link
                     key={index}
-                    className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-accent transition-colors text-left group"
-                    type="button"
-                    aria-label={item.label}
+                    href={href}
+                    onClick={() => setLoadingLink(href)}
                   >
-                    <IconComponent className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <div className={`transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'} flex-1 min-w-0`}>
-                      {isExpanded && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-foreground truncate block">{item.label}</span>
-                          <span className="ml-2 text-xs text-muted-foreground tabular-nums">
-                            {typeof item.count === 'number' ? item.count : '—'}
-                          </span>
-                        </div>
+                    <div
+                      className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-accent transition-colors text-left group"
+                      aria-label={item.label}
+                    >
+                      {isLinkLoading ? (
+                        <Loader2 className="h-4 w-4 text-muted-foreground flex-shrink-0 animate-spin" />
+                      ) : (
+                        <IconComponent className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       )}
+                      <div className={`transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'} flex-1 min-w-0`}>
+                        {isExpanded && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-foreground truncate block">{item.label}</span>
+                            {isLinkLoading ? (
+                              <Loader2 className="ml-2 h-3 w-3 text-muted-foreground animate-spin" />
+                            ) : (
+                              <span className="ml-2 text-xs text-muted-foreground tabular-nums">
+                                {typeof item.count === 'number' ? item.count : '—'}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </button>
+                  </Link>
                 )
               })}
             </nav>
+          </div>
+
+          {/* Journal Section */}
+          <div>
+            <div className={`px-2 mb-3 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
+              {isExpanded && (
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Journal
+                </h3>
+              )}
+            </div>
+            <nav className="space-y-1">
+              {journalItems.map((item, index) => {
+                const IconComponent = item.icon
+                const href = '/journal'
+                const isLinkLoading = loadingLink === href
+                
+                return (
+                  <Link
+                    key={index}
+                    href={href}
+                    onClick={() => setLoadingLink(href)}
+                  >
+                    <div
+                      className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-accent transition-colors text-left group"
+                      aria-label={item.label}
+                    >
+                      {isLinkLoading ? (
+                        <Loader2 className="h-4 w-4 text-muted-foreground flex-shrink-0 animate-spin" />
+                      ) : (
+                        <IconComponent className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      )}
+                      <div className={`transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'} flex-1 min-w-0`}>
+                        {isExpanded && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-foreground truncate block">{item.label}</span>
+                            {isLinkLoading ? (
+                              <Loader2 className="ml-2 h-3 w-3 text-muted-foreground animate-spin" />
+                            ) : (
+                              <span className="ml-2 text-xs text-muted-foreground tabular-nums">
+                                {typeof item.count === 'number' ? item.count : '—'}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </nav>
+
+            {/* Journal archive removed — calendar provides access to entries by date */}
           </div>
 
           {/* Shared Section */}

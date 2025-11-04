@@ -6,8 +6,8 @@ import { authOptions as topAuthOptions } from "@/lib/auth"
 import HelpFAB from "@/components/HelpFAB"
 import { ThemeToggleButton } from "@/components/ThemeToggleButton"
 import { DashboardUserNav } from "@/components/DashboardUserNav"
-import Link from "next/link"
 import RecentNotes from '@/components/dashboard/RecentNotes'
+import QuickActions from '@/components/dashboard/QuickActions'
 
 export default async function DashboardPage() {
   const session = await getServerSession(topAuthOptions)
@@ -48,23 +48,7 @@ export default async function DashboardPage() {
           {/* Quick Actions Card */}
           <div className="bg-card border border-border rounded-lg p-6">
             <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-            <div className="space-y-3">
-              <Link 
-                href="/notes"
-                className="block w-full p-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors text-center"
-              >
-                Create New Note
-              </Link>
-              <Link 
-                href="/notes"
-                className="block w-full p-3 bg-muted text-foreground rounded-lg text-sm font-medium hover:bg-muted/80 transition-colors text-center"
-              >
-                Start Journal Entry
-              </Link>
-              <button className="w-full p-3 bg-muted text-foreground rounded-lg text-sm font-medium hover:bg-muted/80 transition-colors">
-                Browse Templates
-              </button>
-            </div>
+            <QuickActions />
           </div>
 
           {/* Stats Card */}

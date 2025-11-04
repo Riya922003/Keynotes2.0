@@ -128,6 +128,68 @@ export async function createNote(title?: string, content?: EditorDocument | stri
   }
 }
 
+export async function createJournalEntry(title?: string, content?: EditorDocument | string, createdDate?: string): Promise<any> {
+  const session = await getServerSession(topAuthOptions)
+  
+  if (!session?.user?.id) {
+    throw new Error('Authentication required')
+  }
+
+  try {
+    // Get or create default workspace
+    const workspaceId = await getDefaultWorkspace(session.user.id)
+    
+    // Generate unique document ID
+    const documentId = generateId()
+    
+    // Insert new journal entry (type: 'journal')
+    const insertValues: any = {
+      id: documentId,
+      type: 'journal',
+      title: title || 'Untitled Journal Entry',
+      content: content || null,
+      author_id: session.user.id,
+      workspace_id: workspaceId,
+    }
+
+    // If a createdDate was provided and is a valid date string, set created_at explicitly
+    if (createdDate) {
+      try {
+        insertValues.created_at = new Date(createdDate)
+      } catch {}
+    }
+
+    const newEntry = await db.insert(documents).values(insertValues).returning()
+
+    // Revalidate the journal page
+    revalidatePath('/journal')
+    
+    try {
+      // Notify owner (creator) and any collaborators
+      const recipients: string[] = [session.user.id]
+      // Broadcast locally and publish a richer payload for cross-instance subscribers
+      const min = minimizeNote(newEntry[0])
+      broadcastNotesUpdated({ type: 'noteCreated', note: min }, recipients)
+      
+      try {
+        if (redis) {
+          const redisPayload = JSON.stringify({ type: 'noteCreated', note: min, recipients })
+          console.log('redis: publishing (before) ->', NOTE_UPDATE_CHANNEL, redisPayload)
+          await redis.publish(NOTE_UPDATE_CHANNEL, redisPayload)
+          console.log('redis: published (after) ->', NOTE_UPDATE_CHANNEL)
+        }
+      } catch (err) {
+        console.error('[redis] publish error (journalCreated)', err)
+      }
+    } catch {}
+    
+    return newEntry[0]
+  } catch (error: unknown) {
+    console.error('Error creating journal entry:', error)
+    throw new Error('Failed to create journal entry')
+  }
+}
+
 export async function updateNote(
   noteId: string,
   title: string,
@@ -806,5 +868,76 @@ export async function getUserAndSharedNotes() {
   } catch (error) {
     console.error('Error fetching user/shared notes:', error)
     throw new Error('Failed to fetch notes')
+  }
+}
+
+// Get a list of years and months that have journal entries
+export async function getJournalArchiveDates() {
+  const session = await getServerSession(topAuthOptions)
+
+  if (!session?.user?.id) {
+    throw new Error('Authentication required')
+  }
+
+  try {
+    // Create a SQL expression for year-month grouping
+    const yearMonth = sql<string>`to_char(${documents.created_at}, 'YYYY-MM')`
+    
+    const results = await db
+      .select({
+        key: yearMonth,
+        year: sql<string>`to_char(${documents.created_at}, 'YYYY')`,
+        month: sql<string>`to_char(${documents.created_at}, 'MM')`,
+        count: sql<number>`count(${documents.id})`,
+      })
+      .from(documents)
+      .where(
+        and(
+          eq(documents.author_id, session.user.id),
+          eq(documents.type, 'journal')
+        )
+      )
+      .groupBy(yearMonth, sql`to_char(${documents.created_at}, 'YYYY')`, sql`to_char(${documents.created_at}, 'MM')`)
+      .orderBy(desc(yearMonth))
+
+    return results
+  } catch (error) {
+    console.error('Error fetching journal archive dates:', error)
+    throw new Error('Failed to fetch journal archive dates')
+  }
+}
+
+// Get journal entries with optional month filter
+export async function getJournalEntries(month?: string) {
+  const session = await getServerSession(topAuthOptions)
+
+  if (!session?.user?.id) {
+    throw new Error('Authentication required')
+  }
+
+  try {
+    // Create base filter list
+    const filterList = [
+      eq(documents.author_id, session.user.id),
+      eq(documents.type, 'journal'),
+      isNotTrue(documents.is_archived)
+    ]
+
+    // If month filter is provided (format: "YYYY-MM"), add it to filters
+    if (month && typeof month === 'string' && month.length === 7) {
+      filterList.push(sql`to_char(${documents.created_at}, 'YYYY-MM') = ${month}`)
+    }
+
+    // Query with all filters combined
+    const entries = await db
+      .select()
+      .from(documents)
+      .where(and(...filterList))
+      .orderBy(desc(documents.created_at))
+
+    return entries
+  } catch (error) {
+    console.error('Error fetching journal entries:', error)
+    throw new Error('Failed to fetch journal entries')
   }
 }

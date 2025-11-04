@@ -1,4 +1,4 @@
-import { Github, Instagram, Linkedin } from 'lucide-react'
+import { Github, Linkedin } from 'lucide-react'
 import EmailSignupForm from './EmailSignupForm'
 
 export default function Footer() {
@@ -91,16 +91,6 @@ export default function Footer() {
               </li>
               <li>
                 <a 
-                  href="https://instagram.com" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Instagram
-                </a>
-              </li>
-              <li>
-                <a 
                   href="https://linkedin.com" 
                   target="_blank"
                   rel="noopener noreferrer"
@@ -143,15 +133,7 @@ export default function Footer() {
             >
               <Linkedin className="w-5 h-5" />
             </a>
-            <a
-              href="https://instagram.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground transition-colors p-2 hover:bg-accent rounded-lg"
-              aria-label="Instagram"
-            >
-              <Instagram className="w-5 h-5" />
-            </a>
+            {/* Instagram link removed */}
           </div>
         </div>
       </div>

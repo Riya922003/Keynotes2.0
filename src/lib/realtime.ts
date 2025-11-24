@@ -31,7 +31,11 @@ export function broadcastNotesUpdated(payload: unknown = { type: 'notesUpdated',
   const chunk = formatSSE('notesUpdated', payload)
 
   // Keep the debug lightweight to avoid spamming logs with full payloads
-  console.debug('[realtime] broadcastNotesUpdated', { type: (payload && (payload as any).type) ?? 'notesUpdated', recipientsCount: recipients?.length ?? 0 })
+  let _typeField = 'notesUpdated'
+  if (payload && typeof payload === 'object' && 'type' in payload && typeof (payload as Record<string, unknown>).type === 'string') {
+    _typeField = (payload as Record<string, unknown>).type as string
+  }
+  console.debug('[realtime] broadcastNotesUpdated', { type: _typeField, recipientsCount: recipients?.length ?? 0 })
 
   if (!recipients || recipients.length === 0) {
     // broadcast to all

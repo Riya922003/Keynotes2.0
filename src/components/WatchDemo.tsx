@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 
 export default function WatchDemo() {
   const [open, setOpen] = useState(false)
@@ -49,7 +50,9 @@ export default function WatchDemo() {
             </button>
 
             <div className="p-4">
-              <img src="/assets/Gif/keynotes.gif" alt="Keynotes demo" className="w-full h-auto rounded" />
+              <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
+                <Image src="/assets/Gif/keynotes.gif" alt="Keynotes demo" fill className="object-contain rounded" />
+              </div>
             </div>
           </div>
         </div>

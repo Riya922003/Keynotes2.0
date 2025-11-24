@@ -1,7 +1,7 @@
 # 🎹 Keynotes: Real-Time Journaling & Collaborative Notes
 
 <p align="center">
-   <img src="./thumb.png" alt="Project thumbnail" width="480" />
+   <img src="./public/assets/Images/thumb.png" alt="Project thumbnail" width="480" />
 </p>
 
 Keynotes is a modern, full-stack web application designed to be a sanctuary for your private thoughts and a dynamic hub for your collaborative ideas. It seamlessly blends a feature-rich, Google Keep-style notes platform with a private, introspective journaling space, all powered by a real-time, scalable, and serverless architecture.

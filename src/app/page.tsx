@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { authOptions as topAuthOptions } from '@/lib/auth'
 import GetStartedButton from '@/components/GetStartedButton'
+import WatchDemo from '@/components/WatchDemo'
 import FeatureShowcase from '@/components/landing/FeatureShowcase'
 import Features from '@/components/landing/Features'
 import SocialProof from '@/components/landing/SocialProof'
@@ -30,10 +31,7 @@ export default async function Home() {
           </p>
           <div className="flex gap-4 mt-2">
             <GetStartedButton />
-            <button className="flex items-center gap-2 px-4 py-2 rounded bg-muted text-foreground hover:bg-muted/80 transition">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5v14l11-7z"/></svg>
-              Watch Demo
-            </button>
+            <WatchDemo />
           </div>
           <div className="mt-4 text-sm text-muted-foreground">
             <span>⭐ Trusted by 10,000+ users & teams</span>

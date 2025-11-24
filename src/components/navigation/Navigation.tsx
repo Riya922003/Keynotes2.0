@@ -1,5 +1,4 @@
  'use client'
-
 import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -7,27 +6,19 @@ import SearchBar from '@/components/search/SearchBar'
 import { getSidebarCounts } from '@/app/actions/noteActions'
 import { onNotesUpdated } from '@/lib/notesSync'
 import { ChevronsLeft, FileText, Share, Settings, Archive, Star, Users, Wrench, Home, BookHeart, Loader2 } from 'lucide-react'
-// Accordion removed — journal archive moved to calendar
 
 interface NavigationProps {
   children: React.ReactNode
 }
-
 export default function Navigation({ children }: NavigationProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isHovering, setIsHovering] = useState(false)
   const [loadingLink, setLoadingLink] = useState<string | null>(null)
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  
-  // Check if it's mobile view (you can install a useMediaQuery hook or use this simple version)
   const [isMobile, setIsMobile] = useState(false)
-
-  // Router + search state for sidebar search input
   const router = useRouter()
   const searchParams = useSearchParams()
   const [searchValue, setSearchValue] = useState<string>(searchParams?.get('q') ?? '')
-
-  // Keep URL in sync when searchValue changes
   const updateQuery = (q: string) => {
     try {
       const params = new URLSearchParams(searchParams?.toString() || '')
@@ -38,8 +29,6 @@ export default function Navigation({ children }: NavigationProps) {
       setSearchValue(q)
     } catch {}
   }
-
-  // Fetch counts from server action
   const fetchCounts = async () => {
     try {
       const res = await getSidebarCounts()
@@ -50,15 +39,11 @@ export default function Navigation({ children }: NavigationProps) {
         setSharedCount(res.sharedCount ?? 0)
       }
     } catch {
-      // Fail silently - counts are non-critical
     }
   }
 
   useEffect(() => {
-    // Fetch initial counts when component mounts
     fetchCounts()
-
-    // Setup subscription for real-time updates with debounce (supports cross-tab via BroadcastChannel)
     let debounceTimeout: number | null = null
     const handler = () => {
       if (debounceTimeout) {
@@ -69,9 +54,7 @@ export default function Navigation({ children }: NavigationProps) {
         debounceTimeout = null
       }, 200)
     }
-
     const unsubscribe = onNotesUpdated(handler)
-
     return () => {
       if (debounceTimeout) {
         window.clearTimeout(debounceTimeout)
@@ -79,18 +62,14 @@ export default function Navigation({ children }: NavigationProps) {
       try { unsubscribe() } catch {}
     }
   }, [])
-
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
     }
-    
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
-
-  // Handle mouse enter - expand sidebar when collapsed
   const handleMouseEnter = () => {
     if (isCollapsed) {
       setIsHovering(true)
@@ -99,69 +78,52 @@ export default function Navigation({ children }: NavigationProps) {
       }
     }
   }
-
-  // Handle mouse leave - collapse sidebar after delay
   const handleMouseLeave = () => {
     if (isCollapsed) {
       hoverTimeoutRef.current = setTimeout(() => {
         setIsHovering(false)
-      }, 300) // 300ms delay before collapsing
+      }, 300) 
     }
   }
-
-  // Toggle collapsed state
   const toggleCollapsed = () => {
     const newState = !isCollapsed
     setIsCollapsed(newState)
     setIsHovering(false)
-    // When closing the sidebar, clear any active search so notes return to normal
     if (newState) {
       try { updateQuery('') } catch {}
     }
   }
-
-  // Determine if sidebar should be expanded
   const isExpanded = !isCollapsed || isHovering
-
-  // Sidebar navigation items
-  // counts state for dynamic sidebar
   const [notesCount, setNotesCount] = useState<number | undefined>(undefined)
   const [archivedCount, setArchivedCount] = useState<number | undefined>(undefined)
   const [starredCount, setStarredCount] = useState<number | undefined>(undefined)
   const [sharedCount, setSharedCount] = useState<number | undefined>(undefined)
-  
-
-  // Sidebar items - organized by section
   const notesItems = [
     { icon: FileText, label: 'My Notes', count: notesCount },
     { icon: Star, label: 'Starred', count: starredCount },
     { icon: Archive, label: 'Archived', count: archivedCount },
   ]
-
   const journalItems = [
     { icon: BookHeart, label: 'My Journal', count: undefined },
   ]
-
   const sharedItems = [
     { icon: Users, label: 'Team Workspace' },
     { icon: Share, label: 'Shared with me', count: sharedCount },
     { icon: FileText, label: 'Collaboration' },
   ]
-
   const toolItems = [
     { icon: Settings, label: 'Settings' },
     { icon: Wrench, label: 'Integrations' },
   ]
-
   return (
-    <div className="flex min-h-full bg-background">
+    <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
       <aside
         className={`
           ${isExpanded ? 'w-64' : 'w-16'} 
-          ${isMobile ? 'fixed z-40' : 'relative'}
+          ${isMobile ? 'fixed inset-y-0 left-0 z-40' : 'relative'}
           bg-card border-r border-border transition-all duration-300 ease-in-out
-          flex flex-col overflow-hidden min-h-full
+          flex flex-col overflow-hidden h-screen
         `}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
@@ -191,9 +153,8 @@ export default function Navigation({ children }: NavigationProps) {
             </button>
           </div>
         </div>
-
         {/* Navigation Content */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-6">
+        <div className="flex-1 overflow-y-auto p-2 space-y-6 hide-scrollbar show-scrollbar-on-hover">
           {/* Sidebar Search (syncs q param so pages can react) */}
           <div className={`px-2 transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
             {isExpanded && (
@@ -223,9 +184,7 @@ export default function Navigation({ children }: NavigationProps) {
                 } else if (item.label === 'Archived') {
                   href = '/notes?filter=archived'
                 }
-                
                 const isLinkLoading = loadingLink === href
-                
                 return (
                   <Link
                     key={index}
@@ -261,7 +220,6 @@ export default function Navigation({ children }: NavigationProps) {
               })}
             </nav>
           </div>
-
           {/* Journal Section */}
           <div>
             <div className={`px-2 mb-3 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
@@ -276,7 +234,6 @@ export default function Navigation({ children }: NavigationProps) {
                 const IconComponent = item.icon
                 const href = '/journal'
                 const isLinkLoading = loadingLink === href
-                
                 return (
                   <Link
                     key={index}
@@ -311,10 +268,8 @@ export default function Navigation({ children }: NavigationProps) {
                 )
               })}
             </nav>
-
             {/* Journal archive removed — calendar provides access to entries by date */}
           </div>
-
           {/* Shared Section */}
           <div>
             <div className={`px-2 mb-3 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
@@ -348,7 +303,6 @@ export default function Navigation({ children }: NavigationProps) {
               })}
             </nav>
           </div>
-
           {/* Tools Section */}
           <div>
             <div className={`px-2 mb-3 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
@@ -379,14 +333,12 @@ export default function Navigation({ children }: NavigationProps) {
           </div>
         </div>
       </aside>
-
       {/* Main Content Area */}
       <main className="flex-1 overflow-hidden min-h-full">
         <div className="p-6 h-full">
           {children}
         </div>
       </main>
-
       {/* Mobile Overlay */}
       {isMobile && isExpanded && (
         <div

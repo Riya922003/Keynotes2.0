@@ -30,7 +30,8 @@ function formatSSE(event: string, data: unknown) {
 export function broadcastNotesUpdated(payload: unknown = { type: 'notesUpdated', ts: Date.now() }, recipients?: string[]) {
   const chunk = formatSSE('notesUpdated', payload)
 
-  console.debug('[realtime] broadcastNotesUpdated', { payload, recipientsCount: recipients?.length ?? 0 })
+  // Keep the debug lightweight to avoid spamming logs with full payloads
+  console.debug('[realtime] broadcastNotesUpdated', { type: (payload && (payload as any).type) ?? 'notesUpdated', recipientsCount: recipients?.length ?? 0 })
 
   if (!recipients || recipients.length === 0) {
     // broadcast to all
@@ -69,6 +70,7 @@ setInterval(() => {
 export const realtime = {}
 
 import { redis as sharedRedis } from '@/lib/redis'
+import { INSTANCE_ID } from '@/lib/instanceId'
 import { unwrapEventPayload } from './hooks/eventPayload'
 
 // Minimal interface describing the methods we use from ioredis-like clients
@@ -136,10 +138,21 @@ try {
       subscriber.on?.('message', (...args: unknown[]) => {
         _messageCount++
         _lastMessageAt = Date.now()
-        try {
+          try {
           const message = typeof args[1] === 'string' ? args[1] : typeof args[0] === 'string' ? args[0] : ''
           let parsed: unknown = null
           try { parsed = JSON.parse(message) } catch { parsed = message }
+
+          // If the publisher included an origin identifier and it matches our instance,
+          // ignore the message to avoid processing our own publishes (prevents echo/duplication).
+          const origin = (parsed && typeof parsed === 'object' && (parsed as Record<string, unknown>).origin && typeof (parsed as Record<string, unknown>).origin === 'string')
+            ? (parsed as Record<string, unknown>).origin as string
+            : undefined
+          if (origin && origin === INSTANCE_ID) {
+            console.debug(`[realtime] ignoring redis message from same origin=${origin}`)
+            return
+          }
+
           const normalized = unwrapEventPayload(parsed)
           if (normalized) {
             const recipients = (parsed && typeof parsed === 'object' && Array.isArray((parsed as Record<string, unknown>).recipients)) ? (parsed as Record<string, unknown>).recipients as string[] : undefined

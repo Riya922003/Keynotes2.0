@@ -245,35 +245,38 @@ export default function ShareDialog({ documentId, authorId, open, onOpenChangeAc
 
               {/* Suggestions dropdown */}
               <div className="absolute left-0 mt-1 w-full bg-popover border rounded-md shadow z-40">
-                {suggestions.length > 0 ? (
-                  suggestions.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => {
-                        setEmail(s.email || '')
-                        setSuggestions([])
-                      }}
-                      className="w-full text-left px-3 py-2 hover:bg-accent"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Avatar>
-                          {s.avatar_url ? <AvatarImage src={s.avatar_url ?? undefined} alt={s.name ?? undefined} /> : <AvatarFallback>{(s.name || s.email || '').slice(0,2).toUpperCase()}</AvatarFallback>}
-                        </Avatar>
-                        <div className="flex flex-col text-sm">
-                          <span className="font-medium">{s.name || s.email}</span>
-                          <span className="text-xs text-muted-foreground">{s.email}</span>
+                {/* Only show suggestions or the "no users" hint after the user has typed something */}
+                {email.trim().length > 0 ? (
+                  suggestions.length > 0 ? (
+                    suggestions.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => {
+                          setEmail(s.email || '')
+                          setSuggestions([])
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-accent"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Avatar>
+                            {s.avatar_url ? <AvatarImage src={s.avatar_url ?? undefined} alt={s.name ?? undefined} /> : <AvatarFallback>{(s.name || s.email || '').slice(0,2).toUpperCase()}</AvatarFallback>}
+                          </Avatar>
+                          <div className="flex flex-col text-sm">
+                            <span className="font-medium">{s.name || s.email}</span>
+                            <span className="text-xs text-muted-foreground">{s.email}</span>
+                          </div>
                         </div>
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  // No suggestions: show a friendly hint and allow inviting the typed email (will fail if unregistered)
-                  <div className="px-3 py-2 text-sm text-muted-foreground">
-                    No registered users found in this workspace.
-                    <div className="text-xs text-muted-foreground mt-1">If the email is not registered they will need to sign up before they can be invited.</div>
-                  </div>
-                )}
+                      </button>
+                    ))
+                  ) : (
+                    // No suggestions: show a friendly hint and allow inviting the typed email (will fail if unregistered)
+                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                      No registered users found in this workspace.
+                      <div className="text-xs text-muted-foreground mt-1">If the email is not registered they will need to sign up before they can be invited.</div>
+                    </div>
+                  )
+                ) : null}
               </div>
             </div>
 

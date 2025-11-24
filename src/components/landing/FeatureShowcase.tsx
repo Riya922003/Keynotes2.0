@@ -77,7 +77,7 @@ export default function FeatureShowcase() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
 
         {/* Left Column - Interactive Image Collage */}
-        <div className="flex flex-col gap-4 w-full max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+        <div className="flex flex-col gap-4 w-full max-w-2xl mx-auto p-6 bg-muted/30 rounded-lg shadow-lg border border-muted/40">
           {/* Row 1 */}
           <div className="flex gap-4">
             <div className="relative aspect-square flex-1">
@@ -163,7 +163,7 @@ export default function FeatureShowcase() {
           </div>
 
           {/* Active Feature Card */}
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 shadow-lg min-h-[200px] transition-all duration-500 hover:shadow-xl hover:scale-105 hover:border-primary/20">
+          <div className="bg-muted/30 border border-muted/40 rounded-xl p-6 shadow-lg min-h-[200px] transition-all duration-500 hover:shadow-xl hover:scale-105 hover:border-primary/20">
             <div 
               key={activeTab} 
               className="animate-in fade-in duration-500"
